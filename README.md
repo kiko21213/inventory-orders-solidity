@@ -29,6 +29,14 @@ writing production-style smart contracts with security-oriented thinking.
 - Solidity ^0.8.x
 - No frameworks (pure Solidity)
 
+### Deployment(REMIX)
+- Deploy Inventory
+- Deploy OrderRegistry(inventoryAddress)
+- inventory.setOperator(orderRegistryAddress)
+- addItem
+- createOrder -> reserve
+- markPaid -> finalize
+- markShipped
 ---
 
 Author: @kiko21213
