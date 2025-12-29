@@ -16,6 +16,7 @@ contract Inventory {
     uint256 public totalItems;
     uint256 public constant MAX_ITEMS = 10000;
 
+    address public operator;
     address public immutable admin;
 
     /* ========== ERRORS ========== */
@@ -33,6 +34,8 @@ contract Inventory {
     error ExistReservedItem();
     error MaxItemsReached();
     error AlreadyClosed();
+    error NotAuthorized();
+    error ZeroAddressOperator();
 
     /* ========== EVENTS ========== */
     event ItemAdded(uint256 indexed itemId, uint256 quantity);
@@ -41,8 +44,13 @@ contract Inventory {
     event ReservationFinalized(uint256 indexed itemId, uint256 amount);
     event ItemRemoved(uint256 indexed itemId);
     event StateChanged(State oldState, State newState);
+    event ChangeOperator(address indexed oldOperator, address indexed newOperator);
 
     /* ========== MODIFIERS ========== */
+    modifier onlyAdminOrOperator() {
+        if(msg.sender != operator && msg.sender != admin) revert NotAuthorized();
+        _;
+    }
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
         _;
@@ -68,7 +76,14 @@ contract Inventory {
         admin = msg.sender;
         state = State.Active;
     }
+    /* ========== OPERATOR LOGIC ========== */
+    function setOperator(address _newOperator) external onlyAdmin onlyActive{
+        if(_newOperator == address(0)) revert ZeroAddressOperator();
+        address old = operator;
+        operator = _newOperator;
 
+        emit ChangeOperator(old, _newOperator);
+    }
     /* ========== STATE CONTROL ========== */
     function freeze() external onlyAdmin onlyActive {
         State old = state;
@@ -111,7 +126,7 @@ contract Inventory {
 
     function reserveQuantity(uint256 itemId, uint256 amount)
         external
-        onlyAdmin
+        onlyAdminOrOperator
         onlyActive
     {
         Item storage it = items[itemId];
@@ -125,7 +140,7 @@ contract Inventory {
 
     function releaseReservation(uint256 itemId, uint256 amount)
         external
-        onlyAdmin
+        onlyAdminOrOperator
         onlyActiveOrFrozen
     {
         Item storage it = items[itemId];
@@ -139,7 +154,7 @@ contract Inventory {
 
     function finalizeReservation(uint256 itemId, uint256 amount)
         external
-        onlyAdmin
+        onlyAdminOrOperator
         onlyActive
     {
         Item storage it = items[itemId];
@@ -180,3 +195,4 @@ contract Inventory {
         return it.quantity - it.reserved;
     }
 }
+
