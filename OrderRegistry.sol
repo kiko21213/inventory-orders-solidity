@@ -14,6 +14,7 @@ contract OrderRegistry {
         address buyer;
         uint256 itemId;
         uint256 amount;
+        uint256 createdAt;
         bool exists;
         OrderState state;
     }
@@ -22,6 +23,7 @@ contract OrderRegistry {
     IInventory public inventory;
 
     uint256 public nextOrderId;
+    uint256 public constant CANCEL_ORDER = 30 minutes;
     mapping(uint256 => Order) private orders;
 
     /* ========== ERRORS ========== */
@@ -30,6 +32,8 @@ contract OrderRegistry {
     error OrderDoesNotExist();
     error NotBuyer();
     error InvalidState();
+    error NotContract();
+    error CancelOrderPassed();
 
     /* ========== EVENTS ========== */
     event OrderCreated(
@@ -48,6 +52,7 @@ contract OrderRegistry {
     }
 
     constructor(address inventoryAddress) {
+        if(inventoryAddress.code.length == 0) revert NotContract();
         admin = msg.sender;
         inventory = IInventory(inventoryAddress);
     }
@@ -67,6 +72,7 @@ contract OrderRegistry {
             buyer: msg.sender,
             itemId: itemId,
             amount: amount,
+            createdAt : block.timestamp,
             exists: true,
             state: OrderState.Created
         });
@@ -77,11 +83,12 @@ contract OrderRegistry {
     function cancelOrder(uint256 orderId) external {
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
+        if(block.timestamp > o.createdAt + CANCEL_ORDER) revert CancelOrderPassed();
         if (o.buyer != msg.sender) revert NotBuyer();
         if (o.state != OrderState.Created) revert InvalidState();
 
-        inventory.releaseReservation(o.itemId, o.amount);
         o.state = OrderState.Cancelled;
+        inventory.releaseReservation(o.itemId, o.amount);
 
         emit OrderCancelled(orderId);
     }
