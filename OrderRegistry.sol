@@ -98,8 +98,8 @@ contract OrderRegistry {
         if (!o.exists) revert OrderDoesNotExist();
         if (o.state != OrderState.Created) revert InvalidState();
 
-        inventory.finalizeReservation(o.itemId, o.amount);
         o.state = OrderState.Paid;
+        inventory.finalizeReservation(o.itemId, o.amount);
 
         emit OrderPaid(orderId);
     }
@@ -120,3 +120,4 @@ contract OrderRegistry {
         return o;
     }
 }
+
