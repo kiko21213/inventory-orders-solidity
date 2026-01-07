@@ -2,9 +2,9 @@
 pragma solidity ^0.8.31;
 
 interface IInventory {
-    function reserveQuantity(uint256 itemId, uint256 amount) external;
-    function releaseReservation(uint256 itemId, uint256 amount) external;
-    function finalizeReservation(uint256 itemId, uint256 amount) external;
+    function reserveQuantity(uint256 itemId, uint128 amount) external;
+    function releaseReservation(uint256 itemId, uint128 amount) external;
+    function finalizeReservation(uint256 itemId, uint128 amount) external;
 }
 
 contract OrderRegistry {
@@ -13,7 +13,7 @@ contract OrderRegistry {
     struct Order {
         address buyer;
         uint256 itemId;
-        uint256 amount;
+        uint128 amount;
         uint64 createdAt;
         bool exists;
         OrderState state;
@@ -58,7 +58,7 @@ contract OrderRegistry {
     }
 
     /* ========== ORDER LOGIC ========== */
-    function createOrder(uint256 itemId, uint256 amount)
+    function createOrder(uint256 itemId, uint128 amount)
         external
         returns (uint256 orderId)
     {
@@ -93,7 +93,7 @@ contract OrderRegistry {
         emit OrderCancelled(orderId);
     }
 
-    function markPaid(uint256 orderId) external onlyAdmin {
+    function markPaid(uint256 orderId) external onlyAdmin{
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
         if (o.state != OrderState.Created) revert InvalidState();
