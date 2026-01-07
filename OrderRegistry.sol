@@ -14,7 +14,7 @@ contract OrderRegistry {
         address buyer;
         uint256 itemId;
         uint256 amount;
-        uint256 createdAt;
+        uint64 createdAt;
         bool exists;
         OrderState state;
     }
@@ -72,7 +72,7 @@ contract OrderRegistry {
             buyer: msg.sender,
             itemId: itemId,
             amount: amount,
-            createdAt : block.timestamp,
+            createdAt : uint64(block.timestamp),
             exists: true,
             state: OrderState.Created
         });
@@ -120,4 +120,5 @@ contract OrderRegistry {
         return o;
     }
 }
+
 
