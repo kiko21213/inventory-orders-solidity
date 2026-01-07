@@ -158,7 +158,7 @@ contract Inventory {
     function finalizeReservation(uint256 itemId, uint128 amount)
         external
         onlyAdminOrOperator
-        onlyActive
+        onlyActiveOrFrozen
     {
         Item storage it = items[itemId];
         if (!it.exists) revert ItemDoesNotExist();
@@ -198,6 +198,7 @@ contract Inventory {
         return it.quantity - it.reserved;
     }
 }
+
 
 
 
