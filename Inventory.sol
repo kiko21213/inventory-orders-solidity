@@ -179,9 +179,7 @@ contract Inventory {
         if (!it.exists) revert ItemDoesNotExist();
         if (it.reserved > 0) revert ExistReservedItem();
 
-        it.quantity = 0;
-        it.reserved = 0;
-        it.exists = false;
+        delete items[itemId];
         totalItems--;
 
         emit ItemRemoved(itemId);
@@ -198,6 +196,7 @@ contract Inventory {
         return it.quantity - it.reserved;
     }
 }
+
 
 
 
