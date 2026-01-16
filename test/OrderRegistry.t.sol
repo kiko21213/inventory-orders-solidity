@@ -2,16 +2,16 @@
 pragma solidity ^0.8.29;
 
 import "forge-std/Test.sol";
-import { OrderRegistry } from "../src/OrderRegistry.sol";
-import { MockInventory } from "./mocks/MockInventory.sol";
+import {OrderRegistry} from "../src/OrderRegistry.sol";
+import {MockInventory} from "./mocks/MockInventory.sol";
 
 contract OrderRegistryTest is Test {
     MockInventory inv;
     OrderRegistry reg;
+
     function setUp() public {
         inv = new MockInventory();
         reg = new OrderRegistry(address(inv));
-
     }
 
     function test_createOrder_basic() public {
@@ -24,15 +24,14 @@ contract OrderRegistryTest is Test {
         // assertEq(inv.reserveCalls(), 1);
         OrderRegistry.Order memory o = reg.getOrder(id);
         emit log_address(o.buyer);
-        assertEq(o.buyer,buyer);
-        
+        assertEq(o.buyer, buyer);
     }
 
     function test_cancelOrder_withinWindow() public {
         address buyer = address(0xB0B);
 
         vm.prank(buyer);
-        uint256 id = reg.createOrder(1,2);
+        uint256 id = reg.createOrder(1, 2);
 
         vm.warp(block.timestamp + 10);
 
@@ -43,8 +42,8 @@ contract OrderRegistryTest is Test {
         emit log_uint(uint256(o.state));
         emit log_string(" 0=Created, 1=Cancelled, 2=Paid");
         assertEq(uint256(o.state), uint256(OrderRegistry.OrderState.Cancelled));
-        
     }
+
     function test_cancelOerder_afterWindow_reverts() public {
         address buyer = address(0xB0B);
         vm.prank(buyer);
@@ -62,7 +61,6 @@ contract OrderRegistryTest is Test {
         emit log_string("now expecting revert...");
     }
 
-
     function test_cancelOrder_notBuyer_reverts() public {
         address buyer = address(0xB0B);
         address attacker = address(0xBAD);
@@ -74,6 +72,7 @@ contract OrderRegistryTest is Test {
         reg.cancelOrder(id);
         emit log_string("not Buyer");
     }
+
     function test_markPaid_adminOnlyAndSetsPaid() public {
         address buyer = address(0xB0B);
 
@@ -90,15 +89,14 @@ contract OrderRegistryTest is Test {
         assertEq(uint256(o.state), uint256(OrderRegistry.OrderState.Paid));
         assertEq(inv.finalizeCalls(), 1);
         emit log_string("state: 0=Created, 1=Cancelled, 2=Paid");
-
-
     }
+
     function test_cancelOrder_afterPaid_reverts_andDoesNotRelease() public {
         address buyer = address(0xB0B);
 
         vm.prank(buyer);
         uint256 id = reg.createOrder(1, 2);
-        
+
         reg.markPaid(id);
 
         vm.prank(buyer);
@@ -120,7 +118,7 @@ contract OrderRegistryTest is Test {
         vm.expectRevert(OrderRegistry.InvalidState.selector);
         reg.markPaid(id);
     }
-    
+
     function test_cancelOrder_twiceReverts() public {
         address buyer = address(0xB0B);
 
@@ -148,7 +146,7 @@ contract OrderRegistryTest is Test {
         reg.cancelOrder(id);
 
         OrderRegistry.Order memory o = reg.getOrder(id);
-        assertEq(uint256(o.state),uint256(OrderRegistry.OrderState.Created));
+        assertEq(uint256(o.state), uint256(OrderRegistry.OrderState.Created));
     }
 
     function test_createOrder_reserveReverts_nextIdNotChanged() public {
@@ -161,7 +159,7 @@ contract OrderRegistryTest is Test {
 
         reg.createOrder(1, 2);
 
-        assertEq(reg.nextOrderId(),beforeId);
+        assertEq(reg.nextOrderId(), beforeId);
     }
 
     function test_markPaid_finalizeReverts_stateRollsBack() public {
@@ -176,30 +174,31 @@ contract OrderRegistryTest is Test {
         reg.markPaid(id);
 
         OrderRegistry.Order memory o = reg.getOrder(id);
-        assertEq(uint256(o.state),uint256(OrderRegistry.OrderState.Created));
-        
+        assertEq(uint256(o.state), uint256(OrderRegistry.OrderState.Created));
     }
+
     function test_createOrder_emits_OrderCreated() public {
         address buyer = address(0xB0B);
 
         vm.expectEmit(true, true, true, true);
-        emit OrderRegistry.OrderCreated(0,buyer,1,2);
+        emit OrderRegistry.OrderCreated(0, buyer, 1, 2);
 
         vm.prank(buyer);
         reg.createOrder(1, 2);
     }
-    
+
     function test_cancelOrder_emits_OrderCancelled() public {
         address buyer = address(0xB0B);
         vm.prank(buyer);
         uint256 id = reg.createOrder(1, 2);
 
-        vm.expectEmit(true,true,true,true);
+        vm.expectEmit(true, true, true, true);
         emit OrderRegistry.OrderCancelled(0);
 
         vm.prank(buyer);
         reg.cancelOrder(id);
     }
+
     function test_markPaid_emits_OrderPaid() public {
         address buyer = address(0xB0B);
 
@@ -209,10 +208,9 @@ contract OrderRegistryTest is Test {
         vm.expectEmit(true, true, true, true);
         emit OrderRegistry.OrderPaid(0);
 
-        
         reg.markPaid(id);
-        
     }
+
     function testFuzz_createOrder_callsReserve(uint256 itemId, uint128 amount) public {
         amount = uint128(bound(uint256(amount), 1, 1000));
         itemId = bound(itemId, 1, 1_000_000);
@@ -223,14 +221,14 @@ contract OrderRegistryTest is Test {
         reg.createOrder(itemId, amount);
 
         assertEq(inv.reserveCalls(), before + 1);
-
     }
-    function testFuzz_cancelOrder_callsRelease(uint256 itemId, uint128 amount) public  {
+
+    function testFuzz_cancelOrder_callsRelease(uint256 itemId, uint128 amount) public {
         amount = uint128(bound(uint256(amount), 1, 1000));
         itemId = bound(itemId, 1, 1_000_000);
 
         address buyer = address(0xB0B);
-        
+
         vm.prank(buyer);
         uint256 id = reg.createOrder(itemId, amount);
 
@@ -241,11 +239,9 @@ contract OrderRegistryTest is Test {
         reg.cancelOrder(id);
 
         assertEq(inv.reserveCalls(), before + 1);
-
-        
     }
 
-    function  testFuzz_cancelOrder_notBuyerAlwaysReverts(address attacker, uint256 itemId, uint128 amount) public {
+    function testFuzz_cancelOrder_notBuyerAlwaysReverts(address attacker, uint256 itemId, uint128 amount) public {
         attacker = attacker == address(0) ? address(0xBAD) : attacker;
         vm.assume(attacker != address(0xB0B));
         amount = uint128(bound(uint256(amount), 1, 1000));
@@ -257,8 +253,8 @@ contract OrderRegistryTest is Test {
         vm.prank(attacker);
         vm.expectRevert(OrderRegistry.NotBuyer.selector);
         reg.cancelOrder(id);
-
     }
+
     function testFuzz_cancelWindow_timeBoundary(uint256 dt) public {
         address buyer = address(0xB0B);
 
@@ -268,14 +264,15 @@ contract OrderRegistryTest is Test {
         OrderRegistry.Order memory o = reg.getOrder(id);
 
         dt = bound(dt, 0, 3600);
-        vm.warp(uint256(o.createdAt)+ dt);
+        vm.warp(uint256(o.createdAt) + dt);
 
         vm.prank(buyer);
-        if(dt > 30 minutes) {
+        if (dt > 30 minutes) {
             vm.expectRevert(OrderRegistry.CancelOrderPassed.selector);
         }
         reg.cancelOrder(id);
     }
+
     function test_markPaid_afterCancel_reverts() public {
         address buyer = address(0xB0B);
 
@@ -288,19 +285,17 @@ contract OrderRegistryTest is Test {
         vm.expectRevert(OrderRegistry.InvalidState.selector);
         reg.markPaid(id);
     }
+
     function test_cancel_afterPaid_reverts() public {
         address buyer = address(0xB0B);
 
         vm.prank(buyer);
         uint256 id = reg.createOrder(1, 2);
 
-        
         reg.markPaid(id);
 
         vm.prank(buyer);
         vm.expectRevert(OrderRegistry.InvalidState.selector);
         reg.cancelOrder(id);
-
-
     }
 }

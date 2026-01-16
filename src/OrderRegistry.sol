@@ -8,7 +8,12 @@ interface IInventory {
 }
 
 contract OrderRegistry {
-    enum OrderState { Created, Cancelled, Paid, Shipped }
+    enum OrderState {
+        Created,
+        Cancelled,
+        Paid,
+        Shipped
+    }
 
     struct Order {
         address buyer;
@@ -36,12 +41,7 @@ contract OrderRegistry {
     error CancelOrderPassed();
 
     /* ========== EVENTS ========== */
-    event OrderCreated(
-        uint256 indexed orderId,
-        address indexed buyer,
-        uint256 indexed itemId,
-        uint256 amount
-    );
+    event OrderCreated(uint256 indexed orderId, address indexed buyer, uint256 indexed itemId, uint256 amount);
     event OrderCancelled(uint256 indexed orderId);
     event OrderPaid(uint256 indexed orderId);
     event OrderShipped(uint256 indexed orderId);
@@ -52,16 +52,13 @@ contract OrderRegistry {
     }
 
     constructor(address inventoryAddress) {
-        if(inventoryAddress.code.length == 0) revert NotContract();
+        if (inventoryAddress.code.length == 0) revert NotContract();
         admin = msg.sender;
         inventory = IInventory(inventoryAddress);
     }
 
     /* ========== ORDER LOGIC ========== */
-    function createOrder(uint256 itemId, uint128 amount)
-        external
-        returns (uint256 orderId)
-    {
+    function createOrder(uint256 itemId, uint128 amount) external returns (uint256 orderId) {
         if (amount == 0) revert AmountZero();
 
         // reserve FIRST
@@ -72,7 +69,7 @@ contract OrderRegistry {
             buyer: msg.sender,
             itemId: itemId,
             amount: amount,
-            createdAt : uint64(block.timestamp),
+            createdAt: uint64(block.timestamp),
             exists: true,
             state: OrderState.Created
         });
@@ -83,7 +80,7 @@ contract OrderRegistry {
     function cancelOrder(uint256 orderId) external {
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
-        if(block.timestamp > o.createdAt + CANCEL_ORDER) revert CancelOrderPassed();
+        if (block.timestamp > o.createdAt + CANCEL_ORDER) revert CancelOrderPassed();
         if (o.buyer != msg.sender) revert NotBuyer();
         if (o.state != OrderState.Created) revert InvalidState();
 
@@ -93,7 +90,7 @@ contract OrderRegistry {
         emit OrderCancelled(orderId);
     }
 
-    function markPaid(uint256 orderId) external onlyAdmin{
+    function markPaid(uint256 orderId) external onlyAdmin {
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
         if (o.state != OrderState.Created) revert InvalidState();

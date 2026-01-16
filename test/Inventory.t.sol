@@ -23,7 +23,6 @@ contract InventoryTest is Test {
         inv.addItem(ITEM_ID, quantity);
     }
 
-
     function testAddItem_Success() public {
         uint128 qty = 100;
 
@@ -31,23 +30,23 @@ contract InventoryTest is Test {
 
         Inventory.Item memory it = inv.getItem(ITEM_ID);
 
-
         assertTrue(it.exists);
         assertEq(it.quantity, qty);
         assertEq(it.reserved, 0);
         assertEq(inv.totalItems(), 1);
-}
+    }
+
     function testAddItem_RevertIfQuantityZero() public {
         vm.expectRevert(Inventory.QuantityCantBeZero.selector);
         inv.addItem(ITEM_ID, 0);
-}
+    }
 
     function testAddItem_RevertIfItemAlreadyExists() public {
         inv.addItem(ITEM_ID, 10);
 
         vm.expectRevert(Inventory.ItemAlreadyExist.selector);
         inv.addItem(ITEM_ID, 10);
-}
+    }
 
     function testReserveQuantity_SuccessByOperator() public {
         _addDefaultItem(100);
@@ -65,7 +64,7 @@ contract InventoryTest is Test {
 
         uint128 available = inv.getAvailableQuantity(ITEM_ID);
         assertEq(available, 70);
-}
+    }
 
     function testReserveQuantity_RevertIfNotEnoughAvailable() public {
         _addDefaultItem(50);
@@ -77,7 +76,7 @@ contract InventoryTest is Test {
         vm.prank(operator);
         vm.expectRevert(Inventory.NotEnoughAvailable.selector);
         inv.reserveQuantity(ITEM_ID, 20); // only 10 available
-}
+    }
 
     function testReserveQuantity_RevertIfNotAuthorized() public {
         _addDefaultItem(100);
@@ -85,13 +84,12 @@ contract InventoryTest is Test {
         vm.prank(user);
         vm.expectRevert(Inventory.NotAuthorized.selector);
         inv.reserveQuantity(ITEM_ID, 10);
-}
+    }
 
     function testFreeze_SetsStateFrozen() public {
         inv.freeze();
         assertEq(uint256(inv.state()), uint256(Inventory.State.Frozen));
-}
-
+    }
 
     function testReserveQuantity_RevertIfFrozen() public {
         _addDefaultItem(100);
@@ -102,8 +100,7 @@ contract InventoryTest is Test {
         vm.prank(operator);
         vm.expectRevert(Inventory.NotActive.selector);
         inv.reserveQuantity(ITEM_ID, 10);
-}
-
+    }
 
     function testReleaseReservation_SuccessInFrozen() public {
         _addDefaultItem(100);
@@ -119,8 +116,7 @@ contract InventoryTest is Test {
 
         Inventory.Item memory it = inv.getItem(ITEM_ID);
         assertEq(it.reserved, 30);
-}
-
+    }
 
     function testFinalizeReservation_SuccessInFrozen() public {
         _addDefaultItem(100);
@@ -137,30 +133,28 @@ contract InventoryTest is Test {
         Inventory.Item memory it = inv.getItem(ITEM_ID);
         assertEq(it.quantity, 85);
         assertEq(it.reserved, 25);
-}
-
+    }
 
     function testUnfreeze_ReturnsToActive() public {
         inv.freeze();
         inv.unfreeze();
 
         assertEq(uint256(inv.state()), uint256(Inventory.State.Active));
-}
+    }
 
     function testSetOperator_RevertIfFrozen() public {
         inv.freeze();
 
         vm.expectRevert(Inventory.NotActive.selector);
         inv.setOperator(operator);
-}
-
+    }
 
     function testAddItem_RevertIfFrozen() public {
         inv.freeze();
 
         vm.expectRevert(Inventory.NotActive.selector);
         inv.addItem(ITEM_ID, 100);
-}
+    }
 
     function testFuzz_ReserveDoesNotExceedAvailable(uint128 qty, uint128 amount) public {
         qty = uint128(bound(qty, 1, 1_000_000));
@@ -170,14 +164,13 @@ contract InventoryTest is Test {
         inv.setOperator(operator);
 
         vm.prank(operator);
-        if(amount > qty){
+        if (amount > qty) {
             vm.expectRevert(Inventory.NotEnoughAvailable.selector);
             inv.reserveQuantity(ITEM_ID, amount);
-        }else{
+        } else {
             inv.reserveQuantity(ITEM_ID, amount);
             Inventory.Item memory it = inv.getItem(ITEM_ID);
             assertLe(it.reserved, it.quantity);
-            
         }
     }
 
@@ -198,6 +191,7 @@ contract InventoryTest is Test {
         Inventory.Item memory it = inv.getItem(ITEM_ID);
         assertLe(it.reserved, it.quantity);
     }
+
     function testReleaseReservation_RevertIfNotEnoughReserved() public {
         _addDefaultItem(100);
         inv.setOperator(operator);
@@ -205,11 +199,9 @@ contract InventoryTest is Test {
         vm.startPrank(operator);
         inv.reserveQuantity(ITEM_ID, 40);
 
-        
         vm.expectRevert(Inventory.NotEnoughReserved.selector);
         inv.releaseReservation(ITEM_ID, 50);
         vm.stopPrank();
-
     }
 
     function testFrozen_PreventsReserveButAllowsRelease() public {
@@ -229,7 +221,6 @@ contract InventoryTest is Test {
         inv.releaseReservation(ITEM_ID, 5);
 
         Inventory.Item memory it = inv.getItem(ITEM_ID);
-        assertEq(it.reserved,15);
-        
+        assertEq(it.reserved, 15);
     }
 }

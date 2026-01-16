@@ -3,12 +3,16 @@ pragma solidity ^0.8.29;
 
 contract Inventory {
     struct Item {
-        uint128 quantity;   // total
-        uint128 reserved;   // locked
+        uint128 quantity; // total
+        uint128 reserved; // locked
         bool exists;
     }
 
-    enum State { Active, Frozen, Closed }
+    enum State {
+        Active,
+        Frozen,
+        Closed
+    }
     State public state;
 
     mapping(uint256 => Item) private items;
@@ -49,7 +53,7 @@ contract Inventory {
 
     /* ========== MODIFIERS ========== */
     modifier onlyAdminOrOperator() {
-        if(msg.sender != operator && msg.sender != admin) revert NotAuthorized();
+        if (msg.sender != operator && msg.sender != admin) revert NotAuthorized();
         _;
     }
     modifier onlyAdmin() {
@@ -77,15 +81,17 @@ contract Inventory {
         admin = msg.sender;
         state = State.Active;
     }
+
     /* ========== OPERATOR LOGIC ========== */
-    function setOperator(address _newOperator) external onlyAdmin onlyActive{
-        if(_newOperator == address(0)) revert ZeroAddressOperator();
-        if(_newOperator == admin) revert AdminCantBeOperator();
+    function setOperator(address _newOperator) external onlyAdmin onlyActive {
+        if (_newOperator == address(0)) revert ZeroAddressOperator();
+        if (_newOperator == admin) revert AdminCantBeOperator();
         address old = operator;
         operator = _newOperator;
 
         emit OperatorChanged(old, _newOperator);
     }
+
     /* ========== STATE CONTROL ========== */
     function freeze() external onlyAdmin onlyActive {
         State old = state;
@@ -107,30 +113,18 @@ contract Inventory {
     }
 
     /* ========== INVENTORY LOGIC ========== */
-    function addItem(uint256 itemId, uint128 quantity)
-        external
-        onlyAdmin
-        onlyActive
-    {
+    function addItem(uint256 itemId, uint128 quantity) external onlyAdmin onlyActive {
         if (totalItems >= MAX_ITEMS) revert MaxItemsReached();
         if (items[itemId].exists) revert ItemAlreadyExist();
         if (quantity == 0) revert QuantityCantBeZero();
 
-        items[itemId] = Item({
-            quantity: quantity,
-            reserved: 0,
-            exists: true
-        });
+        items[itemId] = Item({quantity: quantity, reserved: 0, exists: true});
 
         totalItems++;
         emit ItemAdded(itemId, quantity);
     }
 
-    function reserveQuantity(uint256 itemId, uint128 amount)
-        external
-        onlyAdminOrOperator
-        onlyActive
-    {
+    function reserveQuantity(uint256 itemId, uint128 amount) external onlyAdminOrOperator onlyActive {
         Item storage it = items[itemId];
         if (!it.exists) revert ItemDoesNotExist();
         if (amount == 0) revert AmountCantBeZero();
@@ -141,11 +135,7 @@ contract Inventory {
         emit Reserved(itemId, amount);
     }
 
-    function releaseReservation(uint256 itemId, uint128 amount)
-        external
-        onlyAdminOrOperator
-        onlyActiveOrFrozen
-    {
+    function releaseReservation(uint256 itemId, uint128 amount) external onlyAdminOrOperator onlyActiveOrFrozen {
         Item storage it = items[itemId];
         if (!it.exists) revert ItemDoesNotExist();
         if (amount == 0) revert AmountCantBeZero();
@@ -155,11 +145,7 @@ contract Inventory {
         emit ReservationReleased(itemId, amount);
     }
 
-    function finalizeReservation(uint256 itemId, uint128 amount)
-        external
-        onlyAdminOrOperator
-        onlyActiveOrFrozen
-    {
+    function finalizeReservation(uint256 itemId, uint128 amount) external onlyAdminOrOperator onlyActiveOrFrozen {
         Item storage it = items[itemId];
         if (!it.exists) revert ItemDoesNotExist();
         if (amount == 0) revert AmountCantBeZero();
@@ -170,11 +156,7 @@ contract Inventory {
         emit ReservationFinalized(itemId, amount);
     }
 
-    function removeItem(uint256 itemId)
-        external
-        onlyAdmin
-        onlyActive
-    {
+    function removeItem(uint256 itemId) external onlyAdmin onlyActive {
         Item storage it = items[itemId];
         if (!it.exists) revert ItemDoesNotExist();
         if (it.reserved > 0) revert ExistReservedItem();
