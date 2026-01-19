@@ -47,6 +47,7 @@ contract MarketPlace {
     error PriceCantBeZero();
     error QuantityCantBeZero();
     error NotSeller();
+    error SellerNotApproved();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address orderRegistryAddress) {
@@ -73,6 +74,7 @@ contract MarketPlace {
 
     /* ========== SELLER ACTION ========== */
     function createItem(string memory _name, uint128 _quantity, uint256 _price) public {
+        if (!isSeller[msg.sender]) revert SellerNotApproved();
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
         uint256 listingId = nextItemListingId++;
