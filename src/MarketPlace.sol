@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
+interface IInventory {
+    function addItem(string memory name, uint128 quantity) external returns (uint256 itemId);
+    function reserveQuantity(uint256 itemId, uint128 amount) external;
+    function releaseReservation(uint256 itemId, uint128 amount) external;
+    function finalizeReservation(uint256 itemId, uint128 amount) external;
+}
+
 interface IOrderRegistry {
     function createOrder(uint256 itemId, uint128 amount) external returns (uint256 orderId);
 }
@@ -17,6 +24,7 @@ contract MarketPlace {
     }
     address public admin;
     IOrderRegistry public orderRegistry;
+    IInventory public inventory;
     mapping(uint256 => ListingItem) public items;
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
@@ -28,6 +36,7 @@ contract MarketPlace {
     event QuantityUpdated(uint256 indexed itemId, uint256 oldQty, uint256 newQty);
     event VipSet(address indexed vip, bool isVip);
     event SellerSet(address indexed seller, bool isSeller);
+    event Purchase(uint256 indexed itemId, address indexed who, uint128 amount, uint256 orderId);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -48,12 +57,18 @@ contract MarketPlace {
     error QuantityCantBeZero();
     error NotSeller();
     error SellerNotApproved();
+    error InsufficientQuantity();
 
     /* ========== CONSTRUCTOR ========== */
-    constructor(address orderRegistryAddress) {
+    constructor(address inventoryAddress, address orderRegistryAddress) {
+        if (inventoryAddress == address(0)) revert ZeroAddress();
+        if (inventoryAddress.code.length == 0) revert notAContract(inventoryAddress);
+
         if (orderRegistryAddress == address(0)) revert ZeroAddress();
         if (orderRegistryAddress.code.length == 0) revert notAContract(orderRegistryAddress);
+
         admin = msg.sender;
+        inventory = IInventory(inventoryAddress);
         orderRegistry = IOrderRegistry(orderRegistryAddress);
     }
 
@@ -107,6 +122,9 @@ contract MarketPlace {
     //     ListingItem memory it = items[_itemId];
     //     if(it.seller == address(0)) revert ItemNotFound();
     //     if(_amount == 0) revert AmountCantBeZero();
+    //     if(_amount > it.quantity) revert InsufficientQuantity();
+
+    //     emit Purchase(_itemId, msg.sender, _amount, orderId);
 
     // }
 }
