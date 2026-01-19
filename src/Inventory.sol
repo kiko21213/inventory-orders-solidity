@@ -3,8 +3,10 @@ pragma solidity ^0.8.29;
 
 contract Inventory {
     struct Item {
+        string name;
         uint128 quantity; // total
         uint128 reserved; // locked
+        uint64 createdAt;
         bool exists;
     }
 
@@ -18,6 +20,7 @@ contract Inventory {
     mapping(uint256 => Item) private items;
 
     uint256 public totalItems;
+    uint256 public nextItemId = 1;
     uint256 public constant MAX_ITEMS = 10000;
 
     address public operator;
@@ -29,7 +32,7 @@ contract Inventory {
     error NotFrozen();
     error ClosedForever();
 
-    error ItemAlreadyExist();
+    // error ItemAlreadyExist();
     error ItemDoesNotExist();
     error QuantityCantBeZero();
     error AmountCantBeZero();
@@ -113,12 +116,13 @@ contract Inventory {
     }
 
     /* ========== INVENTORY LOGIC ========== */
-    function addItem(uint256 itemId, uint128 quantity) external onlyAdmin onlyActive {
+    function addItem(string memory name, uint128 quantity) external onlyAdmin onlyActive returns (uint256 itemId) {
         if (totalItems >= MAX_ITEMS) revert MaxItemsReached();
-        if (items[itemId].exists) revert ItemAlreadyExist();
         if (quantity == 0) revert QuantityCantBeZero();
+        itemId = nextItemId++;
 
-        items[itemId] = Item({quantity: quantity, reserved: 0, exists: true});
+        items[itemId] =
+            Item({name: name, quantity: quantity, reserved: 0, createdAt: uint64(block.timestamp), exists: true});
 
         totalItems++;
         emit ItemAdded(itemId, quantity);
