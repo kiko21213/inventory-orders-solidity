@@ -16,11 +16,11 @@ contract MarketPlace {
     /* ========== STORAGE ========== */
 
     struct ListingItem {
-        string itemName;
-        uint256 itemId;
+        string displayName;
+        uint256 inventoryItemId;
         address seller;
-        uint128 quantity;
         uint256 priceWei;
+        bool exist;
     }
     address public admin;
     IOrderRegistry public orderRegistry;
@@ -42,9 +42,9 @@ contract MarketPlace {
         if (msg.sender != admin) revert NotAnAdmin();
         _;
     }
-    modifier OnlyAdminOrSeller(uint256 _itemId) {
-        if (items[_itemId].seller == address(0)) revert ItemNotFound();
-        if (msg.sender != items[_itemId].seller && msg.sender != admin) revert NotSeller();
+    modifier OnlyAdminOrSeller(uint256 listingId) {
+        if (items[listingId].seller == address(0)) revert ItemNotFound();
+        if (msg.sender != items[listingId].seller && msg.sender != admin) revert NotSeller();
         _;
     }
     /* ========== ERRORS ========== */
@@ -92,9 +92,12 @@ contract MarketPlace {
         if (!isSeller[msg.sender]) revert SellerNotApproved();
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
+
+        uint256 inventoryId = inventory.addItem(_name, _quantity);
         uint256 listingId = nextItemListingId++;
+
         items[listingId] = ListingItem({
-            itemName: _name, itemId: listingId, seller: msg.sender, quantity: _quantity, priceWei: _price
+            displayName: _name, inventoryItemId: inventoryId, seller: msg.sender, priceWei: _price, exist: true
         });
 
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
@@ -109,14 +112,14 @@ contract MarketPlace {
         emit PriceUpdated(_itemId, oldPrice, _newPrice);
     }
 
-    function setQuantity(uint256 _itemId, uint128 _newQuantity) external OnlyAdminOrSeller(_itemId) {
-        ListingItem storage it = items[_itemId];
-        if (_newQuantity == 0) revert QuantityCantBeZero();
-        uint256 oldQuantity = it.quantity;
-        it.quantity = _newQuantity;
+    // function setQuantity(uint256 _itemId, uint128 _newQuantity) external OnlyAdminOrSeller(_itemId) {
+    //     ListingItem storage it = items[_itemId];
+    //     if (_newQuantity == 0) revert QuantityCantBeZero();
+    //     uint256 oldQuantity = it.quantity;
+    //     it.quantity = _newQuantity;
 
-        emit QuantityUpdated(_itemId, oldQuantity, _newQuantity);
-    }
+    //     emit QuantityUpdated(_itemId, oldQuantity, _newQuantity);
+    // }
     /* ========== USER ACTION ========== */
     // function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
     //     ListingItem memory it = items[_itemId];
