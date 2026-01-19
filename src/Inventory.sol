@@ -116,7 +116,12 @@ contract Inventory {
     }
 
     /* ========== INVENTORY LOGIC ========== */
-    function addItem(string memory name, uint128 quantity) external onlyAdmin onlyActive returns (uint256 itemId) {
+    function addItem(string memory name, uint128 quantity)
+        external
+        onlyAdminOrOperator
+        onlyActive
+        returns (uint256 itemId)
+    {
         if (totalItems >= MAX_ITEMS) revert MaxItemsReached();
         if (quantity == 0) revert QuantityCantBeZero();
         itemId = nextItemId++;
