@@ -11,8 +11,6 @@ contract InventoryTest is Test {
     address operator = address(0xBEEF);
     address user = address(0xCAFE);
 
-    uint256 constant ITEM_ID = 1;
-
     function setUp() public {
         inv = new Inventory();
         // admin = address(this) because we deployed it from the test contract
