@@ -44,6 +44,7 @@ contract Inventory {
     error NotAuthorized();
     error ZeroAddressOperator();
     error AdminCantBeOperator();
+    error QuantityBelowReserved();
 
     /* ========== EVENTS ========== */
     event ItemAdded(uint256 indexed itemId, uint256 quantity);
@@ -53,6 +54,7 @@ contract Inventory {
     event ItemRemoved(uint256 indexed itemId);
     event StateChanged(State oldState, State newState);
     event OperatorChanged(address indexed oldOperator, address indexed newOperator);
+    event QuantityChanged(uint256 indexed itemId, uint128 oldQuantity, uint256 newQuantity);
 
     /* ========== MODIFIERS ========== */
     modifier onlyAdminOrOperator() {
@@ -174,6 +176,21 @@ contract Inventory {
         totalItems--;
 
         emit ItemRemoved(itemId);
+    }
+
+    function setQuantityItem(uint256 listingItemId, uint128 newQuantity)
+        external
+        onlyAdminOrOperator
+        onlyActiveOrFrozen
+    {
+        Item storage it = items[listingItemId];
+        if (!it.exists) revert ItemDoesNotExist();
+        if (newQuantity == 0) revert QuantityCantBeZero();
+        if (it.reserved > newQuantity) revert QuantityBelowReserved();
+        uint128 oldQuantity = it.quantity;
+        it.quantity = newQuantity;
+
+        emit QuantityChanged(listingItemId, oldQuantity, newQuantity);
     }
 
     /* ========== GETTERS ========== */
