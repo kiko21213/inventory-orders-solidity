@@ -6,6 +6,7 @@ interface IInventory {
     function reserveQuantity(uint256 itemId, uint128 amount) external;
     function releaseReservation(uint256 itemId, uint128 amount) external;
     function finalizeReservation(uint256 itemId, uint128 amount) external;
+    function setQuantityItem(uint256 itemId, uint128 newQuantity) external;
 }
 
 interface IOrderRegistry {
@@ -112,14 +113,11 @@ contract MarketPlace {
         emit PriceUpdated(_itemId, oldPrice, _newPrice);
     }
 
-    // function setQuantity(uint256 _itemId, uint128 _newQuantity) external OnlyAdminOrSeller(_itemId) {
-    //     ListingItem storage it = items[_itemId];
-    //     if (_newQuantity == 0) revert QuantityCantBeZero();
-    //     uint256 oldQuantity = it.quantity;
-    //     it.quantity = _newQuantity;
-
-    //     emit QuantityUpdated(_itemId, oldQuantity, _newQuantity);
-    // }
+    function setQuantity(uint256 _itemId, uint128 _newQuantity) external OnlyAdminOrSeller(_itemId) {
+        if (_newQuantity == 0) revert QuantityCantBeZero();
+        uint256 invId = items[_itemId].inventoryItemId;
+        inventory.setQuantityItem(invId, _newQuantity);
+    }
     /* ========== USER ACTION ========== */
     // function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
     //     ListingItem memory it = items[_itemId];
