@@ -23,7 +23,7 @@ contract Inventory {
     uint256 public nextItemId = 1;
     uint256 public constant MAX_ITEMS = 10000;
 
-    address public operator;
+    mapping(address => bool) public operators;
     address public immutable admin;
 
     /* ========== ERRORS ========== */
@@ -53,12 +53,12 @@ contract Inventory {
     event ReservationFinalized(uint256 indexed itemId, uint256 amount);
     event ItemRemoved(uint256 indexed itemId);
     event StateChanged(State oldState, State newState);
-    event OperatorChanged(address indexed oldOperator, address indexed newOperator);
+    event OperatorChanged(address indexed newOperator, bool status);
     event QuantityChanged(uint256 indexed itemId, uint128 oldQuantity, uint256 newQuantity);
 
     /* ========== MODIFIERS ========== */
     modifier onlyAdminOrOperator() {
-        if (msg.sender != operator && msg.sender != admin) revert NotAuthorized();
+        if (msg.sender != admin && !operators[msg.sender]) revert NotAuthorized();
         _;
     }
     modifier onlyAdmin() {
@@ -88,13 +88,13 @@ contract Inventory {
     }
 
     /* ========== OPERATOR LOGIC ========== */
-    function setOperator(address _newOperator) external onlyAdmin onlyActive {
+    function setOperator(address _newOperator, bool status) external onlyAdmin onlyActive {
         if (_newOperator == address(0)) revert ZeroAddressOperator();
         if (_newOperator == admin) revert AdminCantBeOperator();
-        address old = operator;
-        operator = _newOperator;
 
-        emit OperatorChanged(old, _newOperator);
+        operators[_newOperator] = status;
+
+        emit OperatorChanged(_newOperator, status);
     }
 
     /* ========== STATE CONTROL ========== */
