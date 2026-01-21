@@ -48,7 +48,7 @@ contract InventoryTest is Test {
     function testReserveQuantity_SuccessByOperator() public {
         uint256 itemId = _addDefaultItem(100);
 
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, 30);
@@ -65,7 +65,7 @@ contract InventoryTest is Test {
 
     function testReserveQuantity_RevertIfNotEnoughAvailable() public {
         uint256 itemId = _addDefaultItem(50);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, 40);
@@ -90,7 +90,7 @@ contract InventoryTest is Test {
 
     function testReserveQuantity_RevertIfFrozen() public {
         uint256 itemId = _addDefaultItem(100);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         inv.freeze();
 
@@ -101,7 +101,7 @@ contract InventoryTest is Test {
 
     function testReleaseReservation_SuccessInFrozen() public {
         uint256 itemId = _addDefaultItem(100);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, 40);
@@ -117,7 +117,7 @@ contract InventoryTest is Test {
 
     function testFinalizeReservation_SuccessInFrozen() public {
         uint256 itemId = _addDefaultItem(100);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, 40);
@@ -143,7 +143,7 @@ contract InventoryTest is Test {
         inv.freeze();
 
         vm.expectRevert(Inventory.NotActive.selector);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
     }
 
     function testAddItem_RevertIfFrozen() public {
@@ -158,7 +158,7 @@ contract InventoryTest is Test {
         amount = uint128(bound(amount, 1, 2_000_000));
 
         uint256 itemId = _addDefaultItem(qty);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         if (amount > qty) {
@@ -177,7 +177,7 @@ contract InventoryTest is Test {
         releaseAmt = uint128(bound(releaseAmt, 1, reserveAmt));
 
         uint256 itemId = _addDefaultItem(qty);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, reserveAmt);
@@ -191,7 +191,7 @@ contract InventoryTest is Test {
 
     function testReleaseReservation_RevertIfNotEnoughReserved() public {
         uint256 itemId = _addDefaultItem(100);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.startPrank(operator);
         inv.reserveQuantity(itemId, 40);
@@ -203,7 +203,7 @@ contract InventoryTest is Test {
 
     function testFrozen_PreventsReserveButAllowsRelease() public {
         uint256 itemId = _addDefaultItem(100);
-        inv.setOperator(operator);
+        inv.setOperator(operator, true);
 
         vm.prank(operator);
         inv.reserveQuantity(itemId, 20);
