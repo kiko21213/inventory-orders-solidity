@@ -121,14 +121,15 @@ contract MarketPlace {
 
         emit QuantitySet(_itemId, _newQuantity);
     }
+
     /* ========== USER ACTION ========== */
-    // function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
-    //     ListingItem memory it = items[_itemId];
-    //     if(it.seller == address(0)) revert ItemNotFound();
-    //     if(_amount == 0) revert AmountCantBeZero();
-    //     if(_amount > it.quantity) revert InsufficientQuantity();
+    function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
+        ListingItem memory it = items[_itemId];
+        if (!it.exist) revert ItemNotFound();
+        if (_amount == 0) revert AmountCantBeZero();
 
-    //     emit Purchase(_itemId, msg.sender, _amount, orderId);
+        orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
 
-    // }
+        emit Purchase(_itemId, msg.sender, _amount, orderId);
+    }
 }
