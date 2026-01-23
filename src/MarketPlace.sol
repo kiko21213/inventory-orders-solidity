@@ -60,6 +60,7 @@ contract MarketPlace {
     error NotSeller();
     error SellerNotApproved();
     error InsufficientQuantity();
+    error SelfPurchase();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -127,6 +128,7 @@ contract MarketPlace {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
         if (_amount == 0) revert AmountCantBeZero();
+        if (msg.sender == it.seller) revert SelfPurchase();
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
 
