@@ -38,6 +38,7 @@ contract MarketPlace {
     event VipSet(address indexed vip, bool isVip);
     event SellerSet(address indexed seller, bool isSeller);
     event Purchase(uint256 indexed itemId, address indexed who, uint128 amount, uint256 orderId);
+    event QuantitySet(uint256 id, uint128 newQty);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -117,6 +118,8 @@ contract MarketPlace {
         if (_newQuantity == 0) revert QuantityCantBeZero();
         uint256 invId = items[_itemId].inventoryItemId;
         inventory.setQuantityItem(invId, _newQuantity);
+
+        emit QuantitySet(_itemId, _newQuantity);
     }
     /* ========== USER ACTION ========== */
     // function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
