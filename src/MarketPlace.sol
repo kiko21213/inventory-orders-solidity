@@ -43,6 +43,9 @@ contract MarketPlace {
     event SellerSet(address indexed seller, bool isSeller);
     event Purchase(uint256 indexed itemId, address indexed who, uint128 amount, uint256 orderId);
     event QuantitySet(uint256 id, uint128 newQty);
+    event Deposit(address indexed who, uint256 amount);
+    event WithdrawForUser(address indexed user, uint256 amount);
+    event WithdrawForPlatform(address indexed admin, uint256 amount);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -66,6 +69,10 @@ contract MarketPlace {
     error InsufficientQuantity();
     error SelfPurchase();
     error WrongPayment();
+    error Failed();
+    error NothingToWithdraw();
+    error InsufficientBalance();
+    error InsufficientPlatformBalance();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -140,9 +147,45 @@ contract MarketPlace {
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
-
+        // if(userBalances[msg.sender] > total){
+        //     userBalances[msg.sender] -= total;
+        // }
         userBalances[it.seller] += total;
+        totalUserBalances += total;
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
+    }
+
+    function deposit() external payable {
+        if (msg.value == 0) revert Failed();
+        userBalances[msg.sender] += msg.value;
+        totalUserBalances += msg.value;
+        emit Deposit(msg.sender, msg.value);
+    }
+
+    function withdrawForUser(uint256 _amount) external {
+        if (_amount == 0) revert AmountCantBeZero();
+        if (userBalances[msg.sender] == 0) revert NothingToWithdraw();
+        if (userBalances[msg.sender] < _amount) revert InsufficientBalance();
+        userBalances[msg.sender] -= _amount;
+        totalUserBalances -= _amount;
+        (bool sent,) = payable(msg.sender).call{value: _amount}("");
+        if (!sent) revert Failed();
+        emit WithdrawForUser(msg.sender, _amount);
+    }
+
+    function withdrawForPlatform(uint256 _amount) external onlyAdmin {
+        if (_amount == 0) revert AmountCantBeZero();
+        if (totalPlatformBalance == 0) revert NothingToWithdraw();
+        if (totalPlatformBalance < _amount) revert InsufficientPlatformBalance();
+
+        totalPlatformBalance -= _amount;
+        (bool sent,) = payable(admin).call{value: _amount}("");
+        if (!sent) revert Failed();
+    }
+    /* ========== GET ACTION ========== */
+
+    function getAccounting() external view returns (uint256 market, uint256 users, uint256 platform) {
+        return (address(this).balance, totalUserBalances, totalPlatformBalance);
     }
 }
