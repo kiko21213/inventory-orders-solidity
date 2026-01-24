@@ -30,6 +30,7 @@ contract OrderRegistry {
     uint256 public nextOrderId;
     uint256 public constant CANCEL_ORDER = 30 minutes;
     mapping(uint256 => Order) private orders;
+    address public operator;
 
     /* ========== ERRORS ========== */
     error NotAdmin();
@@ -39,15 +40,23 @@ contract OrderRegistry {
     error InvalidState();
     error NotContract();
     error CancelOrderPassed();
+    error NotAuthorized();
+    error ZeroAddressOperator();
+    error AdminCantBeOperator();
 
     /* ========== EVENTS ========== */
     event OrderCreated(uint256 indexed orderId, address indexed buyer, uint256 indexed itemId, uint256 amount);
     event OrderCancelled(uint256 indexed orderId);
     event OrderPaid(uint256 indexed orderId);
     event OrderShipped(uint256 indexed orderId);
+    event OperatorAdded(address indexed newOperator, address oldOperator);
 
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAdmin();
+        _;
+    }
+    modifier onlyAdminOrOperator() {
+        if (msg.sender != admin && msg.sender != operator) revert NotAuthorized();
         _;
     }
 
@@ -55,6 +64,16 @@ contract OrderRegistry {
         if (inventoryAddress.code.length == 0) revert NotContract();
         admin = msg.sender;
         inventory = IInventory(inventoryAddress);
+    }
+
+    /* ========== OPERATOR LOGIC ========== */
+    function setOperator(address _operator) external onlyAdmin {
+        if (_operator == address(0)) revert ZeroAddressOperator();
+        if (_operator == admin) revert AdminCantBeOperator();
+        address oldOperator = operator;
+        operator = _operator;
+
+        emit OperatorAdded(_operator, oldOperator);
     }
 
     /* ========== ORDER LOGIC ========== */
@@ -90,7 +109,7 @@ contract OrderRegistry {
         emit OrderCancelled(orderId);
     }
 
-    function markPaid(uint256 orderId) external onlyAdmin {
+    function markPaid(uint256 orderId) external onlyAdminOrOperator {
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
         if (o.state != OrderState.Created) revert InvalidState();
