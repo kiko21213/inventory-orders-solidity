@@ -11,6 +11,7 @@ interface IInventory {
 
 interface IOrderRegistry {
     function createOrder(uint256 itemId, uint128 amount) external returns (uint256 orderId);
+    function markPaid(uint256 orderId) external;
 }
 
 contract MarketPlace {
@@ -29,7 +30,10 @@ contract MarketPlace {
     mapping(uint256 => ListingItem) public items;
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
+    mapping(address => uint256) public userBalances;
     uint256 nextItemListingId = 1;
+    uint256 public totalUserBalances;
+    uint256 public totalPlatformBalance;
     /* ========== EVENTS ========== */
     event Withdraw(address indexed who, uint256 amount);
     event CreateListingItem(uint256 indexed itemId, address indexed who, uint128 quantity, uint256 price);
@@ -61,6 +65,7 @@ contract MarketPlace {
     error SellerNotApproved();
     error InsufficientQuantity();
     error SelfPurchase();
+    error WrongPayment();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -124,13 +129,19 @@ contract MarketPlace {
     }
 
     /* ========== USER ACTION ========== */
-    function buy(uint256 _itemId, uint128 _amount) external returns (uint256 orderId) {
+    function buy(uint256 _itemId, uint128 _amount) external payable returns (uint256 orderId) {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
         if (_amount == 0) revert AmountCantBeZero();
         if (msg.sender == it.seller) revert SelfPurchase();
 
+        uint256 total = it.priceWei * uint256(_amount);
+        if (msg.value != total) revert WrongPayment();
+
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
+        orderRegistry.markPaid(orderId);
+
+        userBalances[it.seller] += total;
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
