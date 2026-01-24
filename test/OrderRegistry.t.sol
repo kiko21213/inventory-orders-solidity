@@ -80,7 +80,7 @@ contract OrderRegistryTest is Test {
         uint256 id = reg.createOrder(1, 2);
 
         vm.prank(buyer);
-        vm.expectRevert(OrderRegistry.NotAdmin.selector);
+        vm.expectRevert(OrderRegistry.NotAuthorized.selector);
         reg.markPaid(id);
 
         reg.markPaid(id);
