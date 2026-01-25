@@ -34,6 +34,7 @@ contract MarketPlace {
     uint256 nextItemListingId = 1;
     uint256 public totalUserBalances;
     uint256 public totalPlatformBalance;
+    uint256 public fees;
     /* ========== EVENTS ========== */
     event Withdraw(address indexed who, uint256 amount);
     event CreateListingItem(uint256 indexed itemId, address indexed who, uint128 quantity, uint256 price);
@@ -47,6 +48,7 @@ contract MarketPlace {
     event WithdrawForUser(address indexed user, uint256 amount);
     event WithdrawForPlatform(address indexed admin, uint256 amount);
     event RefundMoney(address indexed who, uint256 amount);
+    event FeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -74,6 +76,8 @@ contract MarketPlace {
     error NothingToWithdraw();
     error InsufficientBalance();
     error InsufficientPlatformBalance();
+    error FeesAlreadyNewFees();
+    error CantBeMoreThan99();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -101,6 +105,14 @@ contract MarketPlace {
         isSeller[seller] = status;
 
         emit SellerSet(seller, status);
+    }
+
+    function setFees(uint256 _newFees) external onlyAdmin {
+        if (_newFees > 99) revert CantBeMoreThan99();
+        if (fees == _newFees) revert FeesAlreadyNewFees();
+        uint256 oldFees = fees;
+        fees = _newFees;
+        emit FeesSet(msg.sender, oldFees, _newFees);
     }
 
     /* ========== SELLER ACTION ========== */
@@ -143,29 +155,32 @@ contract MarketPlace {
         if (_amount == 0) revert AmountCantBeZero();
         if (msg.sender == it.seller) revert SelfPurchase();
 
+        uint256 fee = it.priceWei * uint256(_amount) * fees / 100;
+
         uint256 total = it.priceWei * uint256(_amount);
+        uint256 totalSeller = it.priceWei * uint256(_amount) - fee;
 
         uint256 credit = userBalances[msg.sender];
         uint256 fromCredit = credit > total ? total : credit;
         uint256 rest = total - fromCredit;
         if (msg.value < rest) revert WrongPayment();
         uint256 refund = msg.value - rest;
+        if (fromCredit > 0) {
+            userBalances[msg.sender] -= fromCredit;
+            totalUserBalances -= fromCredit;
+        }
         if (refund > 0) {
             userBalances[msg.sender] += refund;
             totalUserBalances += refund;
             emit RefundMoney(msg.sender, refund);
         }
 
-        if (fromCredit > 0) {
-            userBalances[msg.sender] -= fromCredit;
-            totalUserBalances -= fromCredit;
-        }
-
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
 
-        userBalances[it.seller] += total;
-        totalUserBalances += total;
+        userBalances[it.seller] += totalSeller;
+        totalUserBalances += totalSeller;
+        totalPlatformBalance += fee;
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
