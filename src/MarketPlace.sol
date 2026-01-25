@@ -46,6 +46,7 @@ contract MarketPlace {
     event Deposit(address indexed who, uint256 amount);
     event WithdrawForUser(address indexed user, uint256 amount);
     event WithdrawForPlatform(address indexed admin, uint256 amount);
+    event RefundMoney(address indexed who, uint256 amount);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -143,17 +144,38 @@ contract MarketPlace {
         if (msg.sender == it.seller) revert SelfPurchase();
 
         uint256 total = it.priceWei * uint256(_amount);
-        if (msg.value != total) revert WrongPayment();
+
+        uint256 credit = userBalances[msg.sender];
+        uint256 fromCredit = credit > total ? total : credit;
+        uint256 rest = total - fromCredit;
+        if (msg.value < rest) revert WrongPayment();
+        uint256 refund = msg.value - rest;
+        if (refund > 0) {
+            userBalances[msg.sender] += refund;
+            totalUserBalances += refund;
+            emit RefundMoney(msg.sender, refund);
+        }
+
+        if (fromCredit > 0) {
+            userBalances[msg.sender] -= fromCredit;
+            totalUserBalances -= fromCredit;
+        }
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
-        // if(userBalances[msg.sender] > total){
-        //     userBalances[msg.sender] -= total;
-        // }
+
         userBalances[it.seller] += total;
         totalUserBalances += total;
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
+    }
+
+    function __refundExtra(uint256 _value, uint256 _price) internal {
+        uint256 refund = _value - _price;
+
+        (bool sent,) = payable(msg.sender).call{value: refund}("");
+        if (!sent) revert Failed();
+        emit RefundMoney(msg.sender, refund);
     }
 
     function deposit() external payable {
@@ -183,8 +205,8 @@ contract MarketPlace {
         (bool sent,) = payable(admin).call{value: _amount}("");
         if (!sent) revert Failed();
     }
-    /* ========== GET ACTION ========== */
 
+    /* ========== GET ACTION ========== */
     function getAccounting() external view returns (uint256 market, uint256 users, uint256 platform) {
         return (address(this).balance, totalUserBalances, totalPlatformBalance);
     }
