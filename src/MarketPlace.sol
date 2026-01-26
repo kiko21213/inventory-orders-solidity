@@ -34,7 +34,10 @@ contract MarketPlace {
     uint256 nextItemListingId = 1;
     uint256 public totalUserBalances;
     uint256 public totalPlatformBalance;
-    uint256 public fees;
+    uint256 internal constant BPS = 10_000;
+    uint256 public feesBps;
+    uint256 public vipFeesBps;
+    uint256 public cashbackBps;
     /* ========== EVENTS ========== */
     event Withdraw(address indexed who, uint256 amount);
     event CreateListingItem(uint256 indexed itemId, address indexed who, uint128 quantity, uint256 price);
@@ -49,6 +52,8 @@ contract MarketPlace {
     event WithdrawForPlatform(address indexed admin, uint256 amount);
     event RefundMoney(address indexed who, uint256 amount);
     event FeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
+    event VipFeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
+    event CashbackSet(address indexed admin, uint256 oldCashback, uint256 newCashback);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -77,7 +82,8 @@ contract MarketPlace {
     error InsufficientBalance();
     error InsufficientPlatformBalance();
     error FeesAlreadyNewFees();
-    error CantBeMoreThan99();
+    error FeesTooHigh();
+    error CashbackTooHigh();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -107,12 +113,28 @@ contract MarketPlace {
         emit SellerSet(seller, status);
     }
 
-    function setFees(uint256 _newFees) external onlyAdmin {
-        if (_newFees > 99) revert CantBeMoreThan99();
-        if (fees == _newFees) revert FeesAlreadyNewFees();
-        uint256 oldFees = fees;
-        fees = _newFees;
-        emit FeesSet(msg.sender, oldFees, _newFees);
+    function setFees(uint256 _newFeesBps) external onlyAdmin {
+        if (_newFeesBps > 5_000) revert FeesTooHigh();
+        if (feesBps == _newFeesBps) revert FeesAlreadyNewFees();
+        uint256 oldFees = feesBps;
+        feesBps = _newFeesBps;
+        emit FeesSet(msg.sender, oldFees, _newFeesBps);
+    }
+
+    function setVipFees(uint256 _newFeesBps) external onlyAdmin {
+        if (_newFeesBps > 5_000) revert FeesTooHigh();
+        if (vipFeesBps == _newFeesBps) revert FeesAlreadyNewFees();
+        uint256 oldVipFees = vipFeesBps;
+        vipFeesBps = _newFeesBps;
+        emit VipFeesSet(msg.sender, oldVipFees, _newFeesBps);
+    }
+
+    function setCashback(uint256 _newCashback) external onlyAdmin {
+        if (_newCashback > 700) revert CashbackTooHigh();
+        if (cashbackBps == _newCashback) revert FeesAlreadyNewFees();
+        uint256 oldCashback = cashbackBps;
+        cashbackBps = _newCashback;
+        emit CashbackSet(msg.sender, oldCashback, _newCashback);
     }
 
     /* ========== SELLER ACTION ========== */
@@ -155,10 +177,11 @@ contract MarketPlace {
         if (_amount == 0) revert AmountCantBeZero();
         if (msg.sender == it.seller) revert SelfPurchase();
 
-        uint256 fee = it.priceWei * uint256(_amount) * fees / 100;
-
         uint256 total = it.priceWei * uint256(_amount);
-        uint256 totalSeller = it.priceWei * uint256(_amount) - fee;
+        uint256 fee = total * feesBps / BPS;
+        uint256 VipFee = total * vipFeesBps / BPS;
+        uint256 totalSeller = total - fee;
+        uint256 totalVipSeller = total - VipFee;
 
         uint256 credit = userBalances[msg.sender];
         uint256 fromCredit = credit > total ? total : credit;
@@ -177,11 +200,15 @@ contract MarketPlace {
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
-
-        userBalances[it.seller] += totalSeller;
-        totalUserBalances += totalSeller;
-        totalPlatformBalance += fee;
-
+        if (isVip[it.seller]) {
+            userBalances[it.seller] += totalVipSeller;
+            totalUserBalances += totalVipSeller;
+            totalPlatformBalance += VipFee;
+        } else {
+            userBalances[it.seller] += totalSeller;
+            totalUserBalances += totalSeller;
+            totalPlatformBalance += fee;
+        }
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
 
