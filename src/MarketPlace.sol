@@ -54,6 +54,7 @@ contract MarketPlace {
     event FeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
     event VipFeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
     event CashbackSet(address indexed admin, uint256 oldCashback, uint256 newCashback);
+    event CashbackPaid(address indexed buyer, uint256 amount);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -178,16 +179,23 @@ contract MarketPlace {
         if (msg.sender == it.seller) revert SelfPurchase();
 
         uint256 total = it.priceWei * uint256(_amount);
+
         uint256 fee = total * feesBps / BPS;
-        uint256 VipFee = total * vipFeesBps / BPS;
-        uint256 totalSeller = total - fee;
-        uint256 totalVipSeller = total - VipFee;
+        uint256 vipFee = total * vipFeesBps / BPS;
+        uint256 appliedFee = isVip[it.seller] ? vipFee : fee;
+
+        uint256 cashback = total * cashbackBps / BPS;
+        if (!isVip[msg.sender]) {
+            cashback = 0;
+        }
+        if (cashback > fee) cashback = appliedFee;
 
         uint256 credit = userBalances[msg.sender];
         uint256 fromCredit = credit > total ? total : credit;
         uint256 rest = total - fromCredit;
         if (msg.value < rest) revert WrongPayment();
         uint256 refund = msg.value - rest;
+
         if (fromCredit > 0) {
             userBalances[msg.sender] -= fromCredit;
             totalUserBalances -= fromCredit;
@@ -200,15 +208,17 @@ contract MarketPlace {
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
-        if (isVip[it.seller]) {
-            userBalances[it.seller] += totalVipSeller;
-            totalUserBalances += totalVipSeller;
-            totalPlatformBalance += VipFee;
-        } else {
-            userBalances[it.seller] += totalSeller;
-            totalUserBalances += totalSeller;
-            totalPlatformBalance += fee;
+        uint256 sellerPayout = total - appliedFee;
+        userBalances[it.seller] += sellerPayout;
+        totalUserBalances += sellerPayout;
+
+        if (cashback > 0) {
+            userBalances[msg.sender] += cashback;
+            totalUserBalances += cashback;
+            emit CashbackPaid(msg.sender, cashback);
         }
+
+        totalPlatformBalance += (appliedFee - cashback);
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
 
