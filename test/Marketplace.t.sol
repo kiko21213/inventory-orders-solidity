@@ -88,4 +88,35 @@ contract Marketplace is Test {
         (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
         assertEq(marketBalance, totalUsers + totalPlatform);
     }
+
+    function test_buyWithDeposit() public {
+        uint128 amount = 3;
+
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.deposit{value: total}();
+        assertEq(mrkt.userBalances(buyer), total);
+
+        vm.prank(buyer);
+        uint256 orderId = mrkt.buy(listingId, amount);
+        assertEq(orderId, 0);
+
+        assertEq(mrkt.userBalances(buyer), 0);
+
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+
+        Inventory.Item memory it = inv.getItem(1);
+        assertEq(uint256(it.quantity), uint256(1_000 - amount));
+        assertEq(uint256(it.reserved), 0);
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
 }
