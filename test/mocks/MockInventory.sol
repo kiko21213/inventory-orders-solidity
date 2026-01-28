@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-import {IInventory} from "../../src/OrderRegistry.sol";
+import {IInventoryReg} from "../../src/OrderRegistry.sol";
 
-contract MockInventory is IInventory {
+contract MockInventory is IInventoryReg {
     uint256 public reserveCalls;
     uint256 public finalizeCalls;
     uint256 public releaseCalls;
