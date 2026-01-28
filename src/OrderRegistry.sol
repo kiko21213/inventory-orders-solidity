@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
-interface IInventory {
+interface IInventoryReg {
     function reserveQuantity(uint256 itemId, uint128 amount) external;
     function releaseReservation(uint256 itemId, uint128 amount) external;
     function finalizeReservation(uint256 itemId, uint128 amount) external;
@@ -25,7 +25,7 @@ contract OrderRegistry {
     }
 
     address public immutable admin;
-    IInventory public inventory;
+    IInventoryReg public inventory;
 
     uint256 public nextOrderId;
     uint256 public constant CANCEL_ORDER = 30 minutes;
@@ -63,7 +63,7 @@ contract OrderRegistry {
     constructor(address inventoryAddress) {
         if (inventoryAddress.code.length == 0) revert NotContract();
         admin = msg.sender;
-        inventory = IInventory(inventoryAddress);
+        inventory = IInventoryReg(inventoryAddress);
     }
 
     /* ========== OPERATOR LOGIC ========== */
