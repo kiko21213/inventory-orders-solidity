@@ -307,4 +307,18 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.NothingToWithdraw.selector);
         mrkt.withdrawForUser(1);
     }
+
+    function test_buyRevertWhenInventoryFrozen() public {
+        uint128 amount = 1;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        inv.freeze();
+
+        vm.prank(buyer);
+        vm.expectRevert();
+        mrkt.buy{value: total}(listingId, amount);
+    }
 }
