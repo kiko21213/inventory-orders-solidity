@@ -179,4 +179,78 @@ contract Marketplace is Test {
         (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
         assertEq(marketBalance, totalUsers + totalPlatform);
     }
+
+    function test_buyVipBuyerCashback() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        mrkt.setVip(buyer, true);
+
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 cashback = total * mrkt.cashbackBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+        uint256 platform = fee - cashback;
+
+        vm.prank(buyer);
+        vm.expectEmit(true, false, false, true);
+        emit CashbackPaid(buyer, cashback);
+
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        assertEq(orderId, 0);
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.userBalances(buyer), cashback);
+
+        assertEq(mrkt.totalPlatformBalance(), platform);
+        Inventory.Item memory it = inv.getItem(1);
+        assertEq(it.quantity, uint256(1_000 - amount));
+        assertEq(it.reserved, 0);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_buyOverPaymentGoesToDeposit() public {
+        uint128 amount = 1;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        uint256 change = 0.25 ether;
+        uint256 sent = total + change;
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+
+        vm.prank(buyer);
+        vm.expectEmit(true, false, false, true);
+        emit RefundMoney(buyer, change);
+
+        uint256 orderId = mrkt.buy{value: sent}(listingId, amount);
+        assertEq(orderId, 0);
+        assertEq(mrkt.userBalances(buyer), change);
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+
+        Inventory.Item memory it = inv.getItem(1);
+        assertEq(it.quantity, uint256(1_000 - amount));
+        assertEq(it.reserved, 0);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_revertWhenWrongPayment() public {
+        uint128 amount = 1;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.WrongPayment.selector);
+        mrkt.buy{value: total - 1}(listingId, amount);
+    }
 }
