@@ -3,6 +3,6 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-solc = "/mnt/d/tools/solc/solc-linux"
+solc_version = "0.8.33"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
