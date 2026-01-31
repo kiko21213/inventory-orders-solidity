@@ -22,6 +22,8 @@ contract Marketplace is Test {
     event RefundMoney(address indexed who, uint256 amount);
     event CashbackPaid(address indexed buyer, uint256 amount);
 
+    receive() external payable {}
+
     function setUp() public {
         inv = new Inventory();
         reg = new OrderRegistry(address(inv));
@@ -252,5 +254,57 @@ contract Marketplace is Test {
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.WrongPayment.selector);
         mrkt.buy{value: total - 1}(listingId, amount);
+    }
+
+    function test_withdrawForUser() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+
+        uint256 sellerEthBefore = seller.balance;
+
+        vm.prank(seller);
+        mrkt.withdrawForUser(sellerPayout);
+        assertEq(mrkt.userBalances(seller), 0);
+        assertEq(seller.balance, sellerEthBefore + sellerPayout);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_withdrawForPlatform() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+
+        uint256 adminEthBefore = address(this).balance;
+        mrkt.withdrawForPlatform(fee);
+
+        assertEq(mrkt.totalPlatformBalance(), 0);
+        assertEq(address(this).balance, adminEthBefore + fee);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_withdrawForUser_revertNothingToWithdraw() public {
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.NothingToWithdraw.selector);
+        mrkt.withdrawForUser(1);
     }
 }
