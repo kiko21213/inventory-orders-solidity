@@ -119,4 +119,64 @@ contract Marketplace is Test {
         (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
         assertEq(marketBalance, totalUsers + totalPlatform);
     }
+
+    function test_buyWithMixedPayment() public {
+        uint128 amount = 4;
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        uint256 depositPart = total / 2;
+        uint256 msgValuePart = total - depositPart;
+
+        vm.prank(buyer);
+        mrkt.deposit{value: depositPart}();
+        assertEq(mrkt.userBalances(buyer), depositPart);
+
+        vm.prank(buyer);
+        uint256 orderId = mrkt.buy{value: msgValuePart}(listingId, amount);
+        assertEq(orderId, 0);
+
+        assertEq(mrkt.userBalances(buyer), 0);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+
+        Inventory.Item memory it = inv.getItem(1);
+        assertEq(it.quantity, uint256(1_000 - amount));
+        assertEq(it.reserved, 0);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_buyVipSellerUseVipFee() public {
+        uint128 amount = 2;
+
+        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        mrkt.setVip(seller, true);
+
+        uint256 vipFee = total * mrkt.vipFeesBps() / 10_000;
+        uint256 sellerPayout = total - vipFee;
+
+        vm.prank(buyer);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        assertEq(orderId, 0);
+
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.totalPlatformBalance(), vipFee);
+
+        Inventory.Item memory it = inv.getItem(1);
+        assertEq(it.quantity, uint256(1_000 - amount));
+        assertEq(it.reserved, 0);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
 }
