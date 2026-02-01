@@ -375,4 +375,36 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.ItemInactive.selector);
         mrkt.buy{value: total}(soldOutItemId, amount);
     }
+
+    function test_setItemPrice_UpdatePriceAndAffectsBuyTotal() public {
+        uint128 amount = 2;
+        (,,, uint256 oldPrice, bool exist, bool isActive) = mrkt.items(listingId);
+        assertTrue(exist);
+        assertTrue(isActive);
+
+        uint256 newPriceWei = oldPrice * 2;
+        vm.prank(seller);
+        mrkt.setItemPrice(listingId, newPriceWei);
+
+        (,,, uint256 updatePrice,,) = mrkt.items(listingId);
+        assertEq(updatePrice, newPriceWei);
+
+        uint256 total = newPriceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+    }
+
+    function test_setItemPrice_revertOnlyAdminorSeller() public {
+        address attacker = makeAddr("attaker");
+
+        vm.prank(attacker);
+        vm.expectRevert();
+        mrkt.setItemPrice(listingId, 5 ether);
+    }
 }
