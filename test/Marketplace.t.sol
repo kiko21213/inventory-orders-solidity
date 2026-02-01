@@ -21,6 +21,7 @@ contract Marketplace is Test {
     event Purchase(uint256 indexed itemId, address indexed who, uint128 amount, uint256 orderId);
     event RefundMoney(address indexed who, uint256 amount);
     event CashbackPaid(address indexed buyer, uint256 amount);
+    event PriceUpdated(uint256 indexed itemId, uint256 oldPriceWei, uint256 newPriceWei);
 
     receive() external payable {}
 
@@ -383,7 +384,10 @@ contract Marketplace is Test {
         assertTrue(isActive);
 
         uint256 newPriceWei = oldPrice * 2;
+
         vm.prank(seller);
+        vm.expectEmit(true, false, false, true);
+        emit PriceUpdated(listingId, oldPrice, newPriceWei);
         mrkt.setItemPrice(listingId, newPriceWei);
 
         (,,, uint256 updatePrice,,) = mrkt.items(listingId);
