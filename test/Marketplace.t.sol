@@ -353,4 +353,26 @@ contract Marketplace is Test {
         uint256 orderId = mrkt.buy{value: total}(listingId, amount);
         assertEq(orderId, 0);
     }
+
+    function test_ItemAutoInactive() public {
+        vm.prank(seller);
+        mrkt.createItem("Orange", 1, 1 ether);
+        uint256 soldOutItemId = 2;
+
+        (,,, uint256 priceWei, bool exist, bool isActive) = mrkt.items(soldOutItemId);
+        assertTrue(exist);
+        assertTrue(isActive);
+
+        uint128 amount = 1;
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(soldOutItemId, amount);
+        (,,,,, bool isActiveAfter) = mrkt.items(soldOutItemId);
+        assertFalse(isActiveAfter);
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.ItemInactive.selector);
+        mrkt.buy{value: total}(soldOutItemId, amount);
+    }
 }
