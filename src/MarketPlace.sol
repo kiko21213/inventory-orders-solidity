@@ -23,6 +23,7 @@ contract MarketPlace {
         address seller;
         uint256 priceWei;
         bool exist;
+        bool isActive;
     }
     address public admin;
     IOrderRegistry public orderRegistry;
@@ -55,6 +56,7 @@ contract MarketPlace {
     event VipFeesSet(address indexed admin, uint256 oldFees, uint256 newFees);
     event CashbackSet(address indexed admin, uint256 oldCashback, uint256 newCashback);
     event CashbackPaid(address indexed buyer, uint256 amount);
+    event ItemActiveSet(uint256 indexed itemId, bool isActive);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -85,6 +87,7 @@ contract MarketPlace {
     error FeesAlreadyNewFees();
     error FeesTooHigh();
     error CashbackTooHigh();
+    error ItemInactive();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -148,7 +151,12 @@ contract MarketPlace {
         uint256 listingId = nextItemListingId++;
 
         items[listingId] = ListingItem({
-            displayName: _name, inventoryItemId: inventoryId, seller: msg.sender, priceWei: _price, exist: true
+            displayName: _name,
+            inventoryItemId: inventoryId,
+            seller: msg.sender,
+            priceWei: _price,
+            exist: true,
+            isActive: true
         });
 
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
@@ -171,10 +179,19 @@ contract MarketPlace {
         emit QuantitySet(_itemId, _newQuantity);
     }
 
+    function setItemActive(uint256 _itemId, bool _isActive) external OnlyAdminOrSeller(_itemId) {
+        ListingItem storage it = items[_itemId];
+        if (!it.exist) revert ItemNotFound();
+
+        it.isActive = _isActive;
+        emit ItemActiveSet(_itemId, _isActive);
+    }
+
     /* ========== USER ACTION ========== */
     function buy(uint256 _itemId, uint128 _amount) external payable returns (uint256 orderId) {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
+        if (!it.isActive) revert ItemInactive();
         if (_amount == 0) revert AmountCantBeZero();
         if (msg.sender == it.seller) revert SelfPurchase();
 
