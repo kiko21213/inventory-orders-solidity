@@ -174,6 +174,8 @@ contract MarketPlace {
 
     function setItemPrice(uint256 _itemId, uint256 _newPrice) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
+        if (!it.exist) revert ItemNotFound();
+        if (!it.isActive) revert ItemInactive();
         if (_newPrice == 0) revert PriceCantBeZero();
         uint256 oldPrice = it.priceWei;
         it.priceWei = _newPrice;
