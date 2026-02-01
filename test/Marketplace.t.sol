@@ -64,7 +64,7 @@ contract Marketplace is Test {
     /* ========= tests ========= */
     function test_buyWithmsgValue() public {
         uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -94,7 +94,7 @@ contract Marketplace is Test {
     function test_buyWithDeposit() public {
         uint128 amount = 3;
 
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -124,7 +124,7 @@ contract Marketplace is Test {
 
     function test_buyWithMixedPayment() public {
         uint128 amount = 4;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -157,7 +157,7 @@ contract Marketplace is Test {
     function test_buyVipSellerUseVipFee() public {
         uint128 amount = 2;
 
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -184,7 +184,7 @@ contract Marketplace is Test {
 
     function test_buyVipBuyerCashback() public {
         uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -216,7 +216,7 @@ contract Marketplace is Test {
 
     function test_buyOverPaymentGoesToDeposit() public {
         uint128 amount = 1;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -246,7 +246,7 @@ contract Marketplace is Test {
 
     function test_revertWhenWrongPayment() public {
         uint128 amount = 1;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -258,7 +258,7 @@ contract Marketplace is Test {
 
     function test_withdrawForUser() public {
         uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -282,7 +282,7 @@ contract Marketplace is Test {
 
     function test_withdrawForPlatform() public {
         uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -310,7 +310,7 @@ contract Marketplace is Test {
 
     function test_buyRevertWhenInventoryFrozen() public {
         uint128 amount = 1;
-        (,,, uint256 priceWei, bool exist) = mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
@@ -320,5 +320,37 @@ contract Marketplace is Test {
         vm.prank(buyer);
         vm.expectRevert();
         mrkt.buy{value: total}(listingId, amount);
+    }
+
+    function test_buyRevertWhenItemInactive() public {
+        uint128 amount = 1;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(seller);
+        mrkt.setItemActive(listingId, false);
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.ItemInactive.selector);
+        mrkt.buy{value: total}(listingId, amount);
+    }
+
+    function test_buyWorksAfterItemReactivated() public {
+        uint128 amount = 1;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.startPrank(seller);
+        mrkt.setItemActive(listingId, false);
+        mrkt.setItemActive(listingId, true);
+        vm.stopPrank();
+
+        vm.prank(buyer);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        assertEq(orderId, 0);
     }
 }
