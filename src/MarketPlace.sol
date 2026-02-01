@@ -7,6 +7,16 @@ interface IInventory {
     function releaseReservation(uint256 itemId, uint128 amount) external;
     function finalizeReservation(uint256 itemId, uint128 amount) external;
     function setQuantityItem(uint256 itemId, uint128 newQuantity) external;
+
+    struct Item {
+        string name;
+        uint128 quantity;
+        uint128 reserved;
+        uint40 createdAt;
+        bool exists;
+    }
+
+    function getItem(uint256 itemId) external view returns (Item memory);
 }
 
 interface IOrderRegistry {
@@ -225,6 +235,7 @@ contract MarketPlace {
 
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
         orderRegistry.markPaid(orderId);
+        __autoInactive(_itemId, it.inventoryItemId);
         uint256 sellerPayout = total - appliedFee;
         userBalances[it.seller] += sellerPayout;
         totalUserBalances += sellerPayout;
@@ -237,6 +248,14 @@ contract MarketPlace {
 
         totalPlatformBalance += (appliedFee - cashback);
         emit Purchase(_itemId, msg.sender, _amount, orderId);
+    }
+
+    function __autoInactive(uint256 _itemId, uint256 _inventoryItemId) internal {
+        IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
+        if (invItem.quantity == 0 && items[_itemId].isActive) {
+            items[_itemId].isActive = false;
+            emit ItemActiveSet(_itemId, false);
+        }
     }
 
     function __refundExtra(uint256 _value, uint256 _price) internal {
