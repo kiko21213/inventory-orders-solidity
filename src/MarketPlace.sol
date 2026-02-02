@@ -15,7 +15,6 @@ interface IInventory {
         uint40 createdAt;
         bool exists;
     }
-
     function getItem(uint256 itemId) external view returns (Item memory);
 }
 
@@ -34,6 +33,7 @@ contract MarketPlace {
         uint256 priceWei;
         bool exist;
         bool isActive;
+        bool isDelisting;
     }
     address public admin;
     IOrderRegistry public orderRegistry;
@@ -67,6 +67,7 @@ contract MarketPlace {
     event CashbackSet(address indexed admin, uint256 oldCashback, uint256 newCashback);
     event CashbackPaid(address indexed buyer, uint256 amount);
     event ItemActiveSet(uint256 indexed itemId, bool isActive);
+    event ItemDelisting(uint256 indexed itemId, bool isDelisting);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -98,6 +99,7 @@ contract MarketPlace {
     error FeesTooHigh();
     error CashbackTooHigh();
     error ItemInactive();
+    error ItemDelisted();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -166,7 +168,8 @@ contract MarketPlace {
             seller: msg.sender,
             priceWei: _price,
             exist: true,
-            isActive: true
+            isActive: true,
+            isDelisting: false
         });
 
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
@@ -175,6 +178,7 @@ contract MarketPlace {
     function setItemPrice(uint256 _itemId, uint256 _newPrice) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
+        if (it.isDelisting) revert ItemDelisted();
         if (!it.isActive) revert ItemInactive();
         if (_newPrice == 0) revert PriceCantBeZero();
         uint256 oldPrice = it.priceWei;
@@ -184,6 +188,7 @@ contract MarketPlace {
     }
 
     function setQuantity(uint256 _itemId, uint128 _newQuantity) external OnlyAdminOrSeller(_itemId) {
+        if (items[_itemId].isDelisting == true) revert ItemDelisted();
         if (_newQuantity == 0) revert QuantityCantBeZero();
         uint256 invId = items[_itemId].inventoryItemId;
         inventory.setQuantityItem(invId, _newQuantity);
@@ -193,16 +198,32 @@ contract MarketPlace {
 
     function setItemActive(uint256 _itemId, bool _isActive) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
-        if (!it.exist) revert ItemNotFound();
+        if (it.isDelisting) revert ItemDelisted();
 
         it.isActive = _isActive;
         emit ItemActiveSet(_itemId, _isActive);
+    }
+
+    function delistingItem(uint256 _itemId, bool _isDelisting) external OnlyAdminOrSeller(_itemId) {
+        ListingItem storage it = items[_itemId];
+        it.isDelisting = _isDelisting;
+        if (_isDelisting) {
+            it.isActive = false;
+            emit ItemActiveSet(_itemId, false);
+        } else {
+            uint128 qty = inventory.getItem(it.inventoryItemId).quantity;
+            bool active = qty > 0;
+            it.isActive = active;
+            emit ItemActiveSet(_itemId, active);
+        }
+        emit ItemDelisting(_itemId, _isDelisting);
     }
 
     /* ========== USER ACTION ========== */
     function buy(uint256 _itemId, uint128 _amount) external payable returns (uint256 orderId) {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
+        if (it.isDelisting) revert ItemDelisted();
         if (!it.isActive) revert ItemInactive();
         if (_amount == 0) revert AmountCantBeZero();
         if (msg.sender == it.seller) revert SelfPurchase();
