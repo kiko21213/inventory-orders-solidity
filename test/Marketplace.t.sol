@@ -63,6 +63,8 @@ contract Marketplace is Test {
     }
 
     /* ========= tests ========= */
+
+    /* ========= BUY TESTS ========= */
     function test_buyWithmsgValue() public {
         uint128 amount = 2;
         (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
@@ -257,58 +259,6 @@ contract Marketplace is Test {
         mrkt.buy{value: total - 1}(listingId, amount);
     }
 
-    function test_withdrawForUser() public {
-        uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
-        assertTrue(exist);
-
-        uint256 total = priceWei * uint256(amount);
-        uint256 fee = total * mrkt.feesBps() / 10_000;
-        uint256 sellerPayout = total - fee;
-
-        vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
-        assertEq(mrkt.userBalances(seller), sellerPayout);
-
-        uint256 sellerEthBefore = seller.balance;
-
-        vm.prank(seller);
-        mrkt.withdrawForUser(sellerPayout);
-        assertEq(mrkt.userBalances(seller), 0);
-        assertEq(seller.balance, sellerEthBefore + sellerPayout);
-
-        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
-        assertEq(marketBalance, totalUsers + totalPlatform);
-    }
-
-    function test_withdrawForPlatform() public {
-        uint128 amount = 2;
-        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
-        assertTrue(exist);
-
-        uint256 total = priceWei * uint256(amount);
-        uint256 fee = total * mrkt.feesBps() / 10_000;
-
-        vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
-        assertEq(mrkt.totalPlatformBalance(), fee);
-
-        uint256 adminEthBefore = address(this).balance;
-        mrkt.withdrawForPlatform(fee);
-
-        assertEq(mrkt.totalPlatformBalance(), 0);
-        assertEq(address(this).balance, adminEthBefore + fee);
-
-        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
-        assertEq(marketBalance, totalUsers + totalPlatform);
-    }
-
-    function test_withdrawForUser_revertNothingToWithdraw() public {
-        vm.prank(seller);
-        vm.expectRevert(MarketPlace.NothingToWithdraw.selector);
-        mrkt.withdrawForUser(1);
-    }
-
     function test_buyRevertWhenInventoryFrozen() public {
         uint128 amount = 1;
         (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
@@ -377,6 +327,164 @@ contract Marketplace is Test {
         mrkt.buy{value: total}(soldOutItemId, amount);
     }
 
+    function test_buyRevertAmountCantBeZero() public {
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
+        mrkt.buy{value: 0}(listingId, 0);
+    }
+
+    function test_buyRevertItemNotFound() public {
+        uint256 fakeId = 111;
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.ItemNotFound.selector);
+        mrkt.buy{value: 1}(fakeId, 1);
+    }
+
+    function test_buyVipCashbackCappedToFee() public {
+        mrkt.setFees(50);
+        mrkt.setCashback(700);
+        mrkt.setVip(buyer, true);
+
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+
+        vm.prank(buyer);
+        vm.expectEmit(true, false, false, true);
+        emit CashbackPaid(buyer, fee);
+        mrkt.buy{value: total}(listingId, amount);
+        assertEq(mrkt.userBalances(buyer), fee);
+        assertEq(mrkt.totalPlatformBalance(), 0);
+        _assertAccountingInvariant();
+    }
+
+    function test_buyRevertWhenAmountExceedsInventory() public {
+        uint128 tooMuchAmount = type(uint128).max;
+
+        vm.prank(buyer);
+        vm.expectRevert();
+        mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
+    }
+    /* ========= WITHDRAW TESTS ========= */
+
+    function test_withdrawForUser() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+        uint256 sellerPayout = total - fee;
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+        assertEq(mrkt.userBalances(seller), sellerPayout);
+
+        uint256 sellerEthBefore = seller.balance;
+
+        vm.prank(seller);
+        mrkt.withdrawForUser(sellerPayout);
+        assertEq(mrkt.userBalances(seller), 0);
+        assertEq(seller.balance, sellerEthBefore + sellerPayout);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_withdrawForPlatform() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+        assertEq(mrkt.totalPlatformBalance(), fee);
+
+        uint256 adminEthBefore = address(this).balance;
+        mrkt.withdrawForPlatform(fee);
+
+        assertEq(mrkt.totalPlatformBalance(), 0);
+        assertEq(address(this).balance, adminEthBefore + fee);
+
+        (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
+        assertEq(marketBalance, totalUsers + totalPlatform);
+    }
+
+    function test_withdrawForUser_revertNothingToWithdraw() public {
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.NothingToWithdraw.selector);
+        mrkt.withdrawForUser(1);
+    }
+
+    function test_withdrawForUserRevertAmountCantBeZero() public {
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
+        mrkt.withdrawForUser(0);
+    }
+
+    function test_withdrawForUserREvertMoreThanBalance() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+
+        uint256 sellerBal = mrkt.userBalances(seller);
+        assertGt(sellerBal, 0);
+
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.InsufficientBalance.selector);
+        mrkt.withdrawForUser(sellerBal + 1);
+    }
+
+    function test_withdrawForPlatformRevertAmountCantBeZero() public {
+        vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
+        mrkt.withdrawForPlatform(0);
+    }
+
+    function test_withdrawForPlatformRevertMoreThanBalance() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+
+        uint256 platformBal = mrkt.totalPlatformBalance();
+        assertGt(mrkt.totalPlatformBalance(), 0);
+
+        vm.expectRevert(MarketPlace.InsufficientPlatformBalance.selector);
+        mrkt.withdrawForPlatform(platformBal + 1);
+    }
+
+    function test_withdrawForPlatformOnlyAdmin() public {
+        uint128 amount = 2;
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+
+        address attacker = makeAddr("attacker");
+        vm.prank(attacker);
+        vm.expectRevert(MarketPlace.NotAnAdmin.selector);
+        mrkt.withdrawForPlatform(1);
+    }
+
     function test_setItemPrice_UpdatePriceAndAffectsBuyTotal() public {
         uint128 amount = 2;
         (,,, uint256 oldPrice, bool exist, bool isActive) = mrkt.items(listingId);
@@ -411,56 +519,17 @@ contract Marketplace is Test {
         vm.expectRevert();
         mrkt.setItemPrice(listingId, 5 ether);
     }
+
     function test_buyRevertSelfPurchase() public {
         uint128 amount = 1;
-        (, , , uint256 priceWei, bool exist, )= mrkt.items(listingId);
+        (,,, uint256 priceWei, bool exist,) = mrkt.items(listingId);
         assertTrue(exist);
 
         uint256 total = priceWei * uint256(amount);
-        vm.deal(seller,total);
+        vm.deal(seller, total);
 
         vm.prank(seller);
         vm.expectRevert(MarketPlace.SelfPurchase.selector);
-        mrkt.buy{value: total}(listingId,amount);
-    }
-
-    function test_buyRevertAmountCantBeZero() public {
-        vm.prank(buyer);
-        vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
-        mrkt.buy{value: 0}(listingId, 0);
-    }
-    function test_buyRevertItemNotFound() public {
-        uint256 fakeId = 111;
-
-        vm.prank(buyer);
-        vm.expectRevert(MarketPlace.ItemNotFound.selector);
-        mrkt.buy{value: 1}(fakeId,1);
-    }
-    function test_buyVipCashbackCappedToFee() public {
-        mrkt.setFees(50);
-        mrkt.setCashback(700);
-        mrkt.setVip(buyer, true);
-
-        uint128 amount = 2;
-        (, , , uint256 priceWei , bool exist , ) = mrkt.items(listingId);
-        assertTrue(exist);
-
-        uint256 total = priceWei * uint256(amount);
-        uint256 fee = total * mrkt.feesBps() / 10_000;
-
-        vm.prank(buyer);
-        vm.expectEmit(true, false, false, true);
-        emit CashbackPaid(buyer, fee);
-        mrkt.buy{value: total}(listingId,amount);
-        assertEq(mrkt.userBalances(buyer),fee);
-        assertEq(mrkt.totalPlatformBalance(),0);
-        _assertAccountingInvariant();
-    }
-    function test_buyRevertWhenAmountExceedsInventory() public {
-        uint128 tooMuchAmount = type(uint128).max;
-
-        vm.prank(buyer);
-        vm.expectRevert();
-        mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
+        mrkt.buy{value: total}(listingId, amount);
     }
 }
