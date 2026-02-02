@@ -319,7 +319,7 @@ contract Marketplace is Test {
         inv.freeze();
 
         vm.prank(buyer);
-        vm.expectRevert();
+        vm.expectRevert(Inventory.NotActive.selector);
         mrkt.buy{value: total}(listingId, amount);
     }
 
@@ -404,11 +404,29 @@ contract Marketplace is Test {
         assertEq(mrkt.totalPlatformBalance(), fee);
     }
 
-    function test_setItemPrice_revertOnlyAdminorSeller() public {
+    function test_setItemPrice_revertOnlyAdminOrSeller() public {
         address attacker = makeAddr("attaker");
 
         vm.prank(attacker);
         vm.expectRevert();
         mrkt.setItemPrice(listingId, 5 ether);
+    }
+    function test_buyRevertSelfPurchase() public {
+        uint128 amount = 1;
+        (, , , uint256 priceWei, bool exist, )= mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        vm.deal(seller,total);
+
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.SelfPurchase.selector);
+        mrkt.buy{value: total}(listingId,amount);
+    }
+
+    function test_buyRevertAmountCantBeZero() public {
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
+        mrkt.buy{value: 0}(listingId, 0);
     }
 }
