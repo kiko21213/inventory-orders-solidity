@@ -429,4 +429,38 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
         mrkt.buy{value: 0}(listingId, 0);
     }
+    function test_buyRevertItemNotFound() public {
+        uint256 fakeId = 111;
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.ItemNotFound.selector);
+        mrkt.buy{value: 1}(fakeId,1);
+    }
+    function test_buyVipCashbackCappedToFee() public {
+        mrkt.setFees(50);
+        mrkt.setCashback(700);
+        mrkt.setVip(buyer, true);
+
+        uint128 amount = 2;
+        (, , , uint256 priceWei , bool exist , ) = mrkt.items(listingId);
+        assertTrue(exist);
+
+        uint256 total = priceWei * uint256(amount);
+        uint256 fee = total * mrkt.feesBps() / 10_000;
+
+        vm.prank(buyer);
+        vm.expectEmit(true, false, false, true);
+        emit CashbackPaid(buyer, fee);
+        mrkt.buy{value: total}(listingId,amount);
+        assertEq(mrkt.userBalances(buyer),fee);
+        assertEq(mrkt.totalPlatformBalance(),0);
+        _assertAccountingInvariant();
+    }
+    function test_buyRevertWhenAmountExceedsInventory() public {
+        uint128 tooMuchAmount = type(uint128).max;
+
+        vm.prank(buyer);
+        vm.expectRevert();
+        mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
+    }
 }
