@@ -369,14 +369,16 @@ contract Marketplace is Test {
         vm.expectRevert();
         mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
     }
+
     function test_buyDelistingItem() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.ItemDelisted.selector);
-        mrkt.buy{value: 1 ether}(listingId,1);
+        mrkt.buy{value: 1 ether}(listingId, 1);
     }
+
     function test_delistingBlockSetItemPrice() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
@@ -385,6 +387,7 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.ItemDelisted.selector);
         mrkt.setItemPrice(listingId, 2 ether);
     }
+
     function test_delistingBlockSetQuantity() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
@@ -393,6 +396,7 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.ItemDelisted.selector);
         mrkt.setQuantity(listingId, 3);
     }
+
     function test_delistingBlockSetItemActive() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
@@ -401,6 +405,7 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.ItemDelisted.selector);
         mrkt.setItemActive(listingId, false);
     }
+
     function test_relistingAutoActivateWhenQuantityGtZero() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
@@ -408,11 +413,12 @@ contract Marketplace is Test {
         vm.prank(seller);
         mrkt.delistingItem(listingId, false);
 
-        (, , , , bool exist, bool isActive, bool isDelisting) = mrkt.items(listingId);
+        (,,,, bool exist, bool isActive, bool isDelisting) = mrkt.items(listingId);
         assertTrue(exist);
         assertTrue(isActive);
         assertFalse(isDelisting);
     }
+
     function test_relistingStaysInactiveWhenQuantityZero() public {
         vm.prank(seller);
         mrkt.createItem("Lime", 1, 1 ether);
@@ -422,7 +428,7 @@ contract Marketplace is Test {
         vm.prank(buyer);
         mrkt.buy{value: 1 ether}(xListingId, 1);
 
-        (, uint256 inventoryItemId, , , , , ) = mrkt.items(xListingId);
+        (, uint256 inventoryItemId,,,,,) = mrkt.items(xListingId);
 
         Inventory.Item memory it = inv.getItem(inventoryItemId);
         assertEq(it.quantity, 0);
@@ -433,27 +439,29 @@ contract Marketplace is Test {
         vm.prank(seller);
         mrkt.delistingItem(xListingId, false);
 
-        (, , , , bool existAfter, bool isActiveAfter, bool isDelistingAfter)= mrkt.items(xListingId);
+        (,,,, bool existAfter, bool isActiveAfter, bool isDelistingAfter) = mrkt.items(xListingId);
         assertTrue(existAfter);
         assertFalse(isActiveAfter);
         assertFalse(isDelistingAfter);
     }
+
     function test_delistingRevertNotSellerOrAdmin() public {
         address attacker = makeAddr("attacker");
 
         vm.prank(attacker);
         vm.expectRevert(MarketPlace.NotSeller.selector);
         mrkt.delistingItem(listingId, true);
-
     }
+
     function test_delistingByAdmin() public {
         mrkt.delistingItem(listingId, true);
 
-        (, , , , bool existAfter, bool isActiveAfter, bool isDelistingAfter) = mrkt.items(listingId);
+        (,,,, bool existAfter, bool isActiveAfter, bool isDelistingAfter) = mrkt.items(listingId);
         assertTrue(existAfter);
         assertFalse(isActiveAfter);
         assertTrue(isDelistingAfter);
     }
+
     function test_delistingIdempotency() public {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
@@ -461,7 +469,7 @@ contract Marketplace is Test {
         vm.prank(seller);
         mrkt.delistingItem(listingId, true);
 
-        (, , , , , bool isActive, bool isDelisting) = mrkt.items(listingId);
+        (,,,,, bool isActive, bool isDelisting) = mrkt.items(listingId);
         assertFalse(isActive);
         assertTrue(isDelisting);
     }
@@ -628,5 +636,4 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.SelfPurchase.selector);
         mrkt.buy{value: total}(listingId, amount);
     }
- 
 }
