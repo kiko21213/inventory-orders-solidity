@@ -446,6 +446,25 @@ contract Marketplace is Test {
         mrkt.delistingItem(listingId, true);
 
     }
+    function test_delistingByAdmin() public {
+        mrkt.delistingItem(listingId, true);
+
+        (, , , , bool existAfter, bool isActiveAfter, bool isDelistingAfter) = mrkt.items(listingId);
+        assertTrue(existAfter);
+        assertFalse(isActiveAfter);
+        assertTrue(isDelistingAfter);
+    }
+    function test_delistingIdempotency() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        (, , , , , bool isActive, bool isDelisting) = mrkt.items(listingId);
+        assertFalse(isActive);
+        assertTrue(isDelisting);
+    }
     /* ========= WITHDRAW TESTS ========= */
 
     function test_withdrawForUser() public {
