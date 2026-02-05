@@ -369,6 +369,83 @@ contract Marketplace is Test {
         vm.expectRevert();
         mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
     }
+    function test_buyDelistingItem() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(buyer);
+        vm.expectRevert(MarketPlace.ItemDelisted.selector);
+        mrkt.buy{value: 1 ether}(listingId,1);
+    }
+    function test_delistingBlockSetItemPrice() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.ItemDelisted.selector);
+        mrkt.setItemPrice(listingId, 2 ether);
+    }
+    function test_delistingBlockSetQuantity() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.ItemDelisted.selector);
+        mrkt.setQuantity(listingId, 3);
+    }
+    function test_delistingBlockSetItemActive() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(seller);
+        vm.expectRevert(MarketPlace.ItemDelisted.selector);
+        mrkt.setItemActive(listingId, false);
+    }
+    function test_relistingAutoActivateWhenQuantityGtZero() public {
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, true);
+
+        vm.prank(seller);
+        mrkt.delistingItem(listingId, false);
+
+        (, , , , bool exist, bool isActive, bool isDelisting) = mrkt.items(listingId);
+        assertTrue(exist);
+        assertTrue(isActive);
+        assertFalse(isDelisting);
+    }
+    function test_relistingStaysInactiveWhenQuantityZero() public {
+        vm.prank(seller);
+        mrkt.createItem("Lime", 1, 1 ether);
+
+        uint256 xListingId = mrkt.nextItemListingId() - 1;
+
+        vm.prank(buyer);
+        mrkt.buy{value: 1 ether}(xListingId, 1);
+
+        (, uint256 inventoryItemId, , , , , ) = mrkt.items(xListingId);
+
+        Inventory.Item memory it = inv.getItem(inventoryItemId);
+        assertEq(it.quantity, 0);
+
+        vm.prank(seller);
+        mrkt.delistingItem(xListingId, true);
+
+        vm.prank(seller);
+        mrkt.delistingItem(xListingId, false);
+
+        (, , , , bool existAfter, bool isActiveAfter, bool isDelistingAfter)= mrkt.items(xListingId);
+        assertTrue(existAfter);
+        assertFalse(isActiveAfter);
+        assertFalse(isDelistingAfter);
+    }
+    function test_delistingRevertNotSellerOrAdmin() public {
+        address attacker = makeAddr("attacker");
+
+        vm.prank(attacker);
+        vm.expectRevert(MarketPlace.NotSeller.selector);
+        mrkt.delistingItem(listingId, true);
+
+    }
     /* ========= WITHDRAW TESTS ========= */
 
     function test_withdrawForUser() public {
@@ -532,4 +609,5 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.SelfPurchase.selector);
         mrkt.buy{value: total}(listingId, amount);
     }
+ 
 }
