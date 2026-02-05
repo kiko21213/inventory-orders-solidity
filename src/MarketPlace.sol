@@ -42,7 +42,7 @@ contract MarketPlace {
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
     mapping(address => uint256) public userBalances;
-    uint256 nextItemListingId = 1;
+    uint256 public nextItemListingId = 1;
     uint256 public totalUserBalances;
     uint256 public totalPlatformBalance;
     uint256 internal constant BPS = 10_000;
