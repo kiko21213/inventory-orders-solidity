@@ -49,6 +49,8 @@ contract MarketPlace {
     uint256 public feesBps;
     uint256 public vipFeesBps;
     uint256 public cashbackBps;
+    uint128 public maxListingItemNonVip;
+    uint128 public maxListingItemVip;
     /* ========== EVENTS ========== */
     event Withdraw(address indexed who, uint256 amount);
     event CreateListingItem(uint256 indexed itemId, address indexed who, uint128 quantity, uint256 price);
@@ -68,6 +70,8 @@ contract MarketPlace {
     event CashbackPaid(address indexed buyer, uint256 amount);
     event ItemActiveSet(uint256 indexed itemId, bool isActive);
     event ItemDelisting(uint256 indexed itemId, bool isDelisting);
+    event NonVipLimitSet(uint128 indexed oldLimit,uint128 newLimit);
+    event VipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -100,6 +104,8 @@ contract MarketPlace {
     error CashbackTooHigh();
     error ItemInactive();
     error ItemDelisted();
+    error CannotBeEqual();
+    error InvalidLimit();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -112,6 +118,8 @@ contract MarketPlace {
         admin = msg.sender;
         inventory = IInventory(inventoryAddress);
         orderRegistry = IOrderRegistry(orderRegistryAddress);
+        maxListingItemNonVip = 5;
+        maxListingItemVip = 50;
     }
 
     /* ========== ADMIN ACTION ========== */
@@ -151,6 +159,20 @@ contract MarketPlace {
         uint256 oldCashback = cashbackBps;
         cashbackBps = _newCashback;
         emit CashbackSet(msg.sender, oldCashback, _newCashback);
+    }
+    function setLimitNonVip(uint128 _newLimit) public onlyAdmin {
+        if(_newLimit == maxListingItemNonVip) revert CannotBeEqual();
+        if(_newLimit == 0) revert InvalidLimit();
+        uint128 oldLimit = maxListingItemNonVip;
+        maxListingItemNonVip = _newLimit;
+        emit NonVipLimitSet(oldLimit, _newLimit);
+    }
+        function setLimitVip(uint128 _newLimit) public onlyAdmin {
+        if(_newLimit == maxListingItemVip) revert CannotBeEqual();
+        if(_newLimit == 0) revert InvalidLimit();
+        uint128 oldLimit = maxListingItemVip;
+        maxListingItemVip = _newLimit;
+        emit VipLimitSet(oldLimit, _newLimit);
     }
 
     /* ========== SELLER ACTION ========== */
