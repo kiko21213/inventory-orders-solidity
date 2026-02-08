@@ -636,4 +636,29 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.SelfPurchase.selector);
         mrkt.buy{value: total}(listingId, amount);
     }
+
+
+    function test_setMaxListingItemsNonVipOnlyAdmin() public {
+        address attacker = makeAddr("attacker");
+
+        vm.prank(attacker);
+        vm.expectRevert(MarketPlace.NotAnAdmin.selector);
+        mrkt.setLimitNonVip(2);
+    }
+    function test_setMaxListingItemsVipOnlyAdmin() public {
+        address attacker = makeAddr("attacker");
+
+        vm.prank(attacker);
+        vm.expectRevert(MarketPlace.NotAnAdmin.selector);
+        mrkt.setLimitVip(2);
+    }
+
+    function test_setMaxListingItemsVipRejectsZero() public {
+        vm.expectRevert(MarketPlace.InvalidLimit.selector);
+        mrkt.setLimitVip(0);
+    }
+    function test_setMaxListingItemsNonVipRejectsZero() public {
+        vm.expectRevert(MarketPlace.InvalidLimit.selector);
+        mrkt.setLimitNonVip(0);
+    }
 }
