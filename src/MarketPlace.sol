@@ -42,6 +42,7 @@ contract MarketPlace {
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
     mapping(address => uint256) public userBalances;
+    mapping(address => uint256) public activeItemListingCount;
     uint256 public nextItemListingId = 1;
     uint256 public totalUserBalances;
     uint256 public totalPlatformBalance;
@@ -106,6 +107,7 @@ contract MarketPlace {
     error ItemDelisted();
     error CannotBeEqual();
     error InvalidLimit();
+    error LimitReached();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -175,14 +177,19 @@ contract MarketPlace {
         emit VipLimitSet(oldLimit, _newLimit);
     }
 
+    function __maxLimitFor(address seller) internal view returns(uint128) {
+        return isVip[seller] ? maxListingItemVip : maxListingItemNonVip;
+    }
+
     /* ========== SELLER ACTION ========== */
     function createItem(string memory _name, uint128 _quantity, uint256 _price) public {
         if (!isSeller[msg.sender]) revert SellerNotApproved();
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
-
+        if(activeItemListingCount[msg.sender] >= __maxLimitFor(msg.sender)) revert LimitReached();
         uint256 inventoryId = inventory.addItem(_name, _quantity);
         uint256 listingId = nextItemListingId++;
+        activeItemListingCount[msg.sender] += 1;
 
         items[listingId] = ListingItem({
             displayName: _name,
@@ -220,21 +227,36 @@ contract MarketPlace {
 
     function setItemActive(uint256 _itemId, bool _isActive) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
-        if (it.isDelisting) revert ItemDelisted();
-
+        if (it.isDelisting) revert ItemDelisted();  
+        if(_isActive == false){
+            activeItemListingCount[msg.sender]--;
+        }else{
+            activeItemListingCount[msg.sender]++;
+        }
         it.isActive = _isActive;
         emit ItemActiveSet(_itemId, _isActive);
     }
-
-    function delistingItem(uint256 _itemId, bool _isDelisting) external OnlyAdminOrSeller(_itemId) {
+        function delistingItem(uint256 _itemId, bool _isDelisting) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
+        bool wasActive = it.isActive;
         it.isDelisting = _isDelisting;
         if (_isDelisting) {
+            if(wasActive){
+                activeItemListingCount[it.seller]--;
+            }
             it.isActive = false;
             emit ItemActiveSet(_itemId, false);
         } else {
             uint128 qty = inventory.getItem(it.inventoryItemId).quantity;
             bool active = qty > 0;
+            if(active && !wasActive){
+                uint128 limit = __maxLimitFor(it.seller);
+                if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
+                activeItemListingCount[it.seller]++;
+            }
+            if(!active && wasActive){
+                activeItemListingCount[it.seller] --;
+            }
             it.isActive = active;
             emit ItemActiveSet(_itemId, active);
         }
@@ -299,6 +321,7 @@ contract MarketPlace {
         IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
         if (invItem.quantity == 0 && items[_itemId].isActive) {
             items[_itemId].isActive = false;
+            activeItemListingCount[items[_itemId].seller]--;
             emit ItemActiveSet(_itemId, false);
         }
     }
