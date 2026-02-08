@@ -227,6 +227,8 @@ contract MarketPlace {
 
     function setItemActive(uint256 _itemId, bool _isActive) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
+        uint128 limit = __maxLimitFor(it.seller);
+        if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
         if (it.isDelisting) revert ItemDelisted();  
         if(_isActive == false){
             activeItemListingCount[msg.sender]--;
