@@ -661,4 +661,24 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.InvalidLimit.selector);
         mrkt.setLimitNonVip(0);
     }
+    function test_reactiveAfterCreatingNewHitsLimit() public {
+     vm.startPrank(seller);
+
+    uint256 limit = mrkt.maxListingItemNonVip();
+    
+    for (uint256 i = 0; i < limit - 1; i++) {
+        mrkt.createItem("s", 1, 1 ether);
+    }
+
+    uint256 oldId = listingId;
+    mrkt.setItemActive(oldId, false);
+
+    mrkt.createItem("a", 1, 1 ether);
+
+    vm.expectRevert(MarketPlace.LimitReached.selector);
+    mrkt.setItemActive(oldId, true);
+
+    vm.stopPrank();
+
+    }
 }
