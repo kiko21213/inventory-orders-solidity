@@ -227,13 +227,15 @@ contract MarketPlace {
 
     function setItemActive(uint256 _itemId, bool _isActive) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
-        uint128 limit = __maxLimitFor(it.seller);
-        if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
-        if (it.isDelisting) revert ItemDelisted();  
-        if(_isActive == false){
-            activeItemListingCount[msg.sender]--;
+        if (it.isDelisting) revert ItemDelisted();
+        bool wasActive = it.isActive;
+        if(wasActive == _isActive) return;  
+        if(_isActive){
+            uint128 limit = __maxLimitFor(it.seller);
+            if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
+            activeItemListingCount[it.seller]++;
         }else{
-            activeItemListingCount[msg.sender]++;
+            activeItemListingCount[it.seller]--;
         }
         it.isActive = _isActive;
         emit ItemActiveSet(_itemId, _isActive);
