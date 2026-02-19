@@ -35,14 +35,20 @@ contract MarketPlace {
         bool isActive;
         bool isDelisting;
     }
+    struct SellerStats{
+        uint256 activeListingItem;
+        uint256 soldOrders;
+        uint256 earnWei;
+    }
     address public admin;
     IOrderRegistry public orderRegistry;
     IInventory public inventory;
+    mapping(address => SellerStats) public sellerStats;
     mapping(uint256 => ListingItem) public items;
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
     mapping(address => uint256) public userBalances;
-    mapping(address => uint256) public activeItemListingCount;
+    // mapping(address => uint256) public activeItemListingCount;
     uint256 public nextItemListingId = 1;
     uint256 public totalUserBalances;
     uint256 public totalPlatformBalance;
@@ -186,10 +192,10 @@ contract MarketPlace {
         if (!isSeller[msg.sender]) revert SellerNotApproved();
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
-        if(activeItemListingCount[msg.sender] >= __maxLimitFor(msg.sender)) revert LimitReached();
+        if(sellerStats[msg.sender].activeListingItem >= __maxLimitFor(msg.sender)) revert LimitReached();
         uint256 inventoryId = inventory.addItem(_name, _quantity);
         uint256 listingId = nextItemListingId++;
-        activeItemListingCount[msg.sender] += 1;
+        sellerStats[msg.sender].activeListingItem += 1;
 
         items[listingId] = ListingItem({
             displayName: _name,
@@ -232,10 +238,10 @@ contract MarketPlace {
         if(wasActive == _isActive) return;  
         if(_isActive){
             uint128 limit = __maxLimitFor(it.seller);
-            if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
-            activeItemListingCount[it.seller]++;
+            if(sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
+            sellerStats[it.seller].activeListingItem++;
         }else{
-            activeItemListingCount[it.seller]--;
+            sellerStats[it.seller].activeListingItem--;
         }
         it.isActive = _isActive;
         emit ItemActiveSet(_itemId, _isActive);
@@ -246,7 +252,7 @@ contract MarketPlace {
         it.isDelisting = _isDelisting;
         if (_isDelisting) {
             if(wasActive){
-                activeItemListingCount[it.seller]--;
+                sellerStats[it.seller].activeListingItem--;
             }
             it.isActive = false;
             emit ItemActiveSet(_itemId, false);
@@ -255,11 +261,11 @@ contract MarketPlace {
             bool active = qty > 0;
             if(active && !wasActive){
                 uint128 limit = __maxLimitFor(it.seller);
-                if(activeItemListingCount[it.seller] >= limit) revert LimitReached();
-                activeItemListingCount[it.seller]++;
+                if(sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
+                sellerStats[it.seller].activeListingItem++;
             }
             if(!active && wasActive){
-                activeItemListingCount[it.seller] --;
+               sellerStats[it.seller].activeListingItem--;
             }
             it.isActive = active;
             emit ItemActiveSet(_itemId, active);
@@ -325,7 +331,7 @@ contract MarketPlace {
         IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
         if (invItem.quantity == 0 && items[_itemId].isActive) {
             items[_itemId].isActive = false;
-            activeItemListingCount[items[_itemId].seller]--;
+            sellerStats[items[_itemId].seller].activeListingItem--;
             emit ItemActiveSet(_itemId, false);
         }
     }
