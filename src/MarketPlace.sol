@@ -37,6 +37,7 @@ contract MarketPlace {
     }
     struct SellerStats{
         uint256 activeListingItem;
+        uint256 soldItem;
         uint256 soldOrders;
         uint256 earnWei;
     }
@@ -316,6 +317,8 @@ contract MarketPlace {
         uint256 sellerPayout = total - appliedFee;
         userBalances[it.seller] += sellerPayout;
         totalUserBalances += sellerPayout;
+        sellerStats[it.seller].soldItem += _amount;
+        sellerStats[it.seller].earnWei += sellerPayout;
 
         if (cashback > 0) {
             userBalances[msg.sender] += cashback;
@@ -332,6 +335,7 @@ contract MarketPlace {
         if (invItem.quantity == 0 && items[_itemId].isActive) {
             items[_itemId].isActive = false;
             sellerStats[items[_itemId].seller].activeListingItem--;
+            sellerStats[items[_itemId].seller].soldOrders++;
             emit ItemActiveSet(_itemId, false);
         }
     }
