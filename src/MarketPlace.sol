@@ -352,6 +352,7 @@ contract MarketPlace {
             totalUserBalances += cashback;
             emit CashbackPaid(msg.sender, cashback);
         }
+        totalPlatformBalance += (appliedFee - cashback);
     }
     function __autoInactive(uint256 _itemId, uint256 _inventoryItemId) internal {
         IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
