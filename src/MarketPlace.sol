@@ -311,14 +311,6 @@ contract MarketPlace {
         orderRegistry.markPaid(orderId);
         __autoInactive(_itemId, it.inventoryItemId);
 
-
-        if (cashback > 0) {
-            userBalances[msg.sender] += cashback;
-            totalUserBalances += cashback;
-            emit CashbackPaid(msg.sender, cashback);
-        }
-
-        totalPlatformBalance += (appliedFee - cashback);
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
     function __calcFee(uint256 total , address seller) internal view returns(uint256) {
