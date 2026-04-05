@@ -681,4 +681,79 @@ contract Marketplace is Test {
     vm.stopPrank();
 
     }
+
+    //================== FUZZ
+
+    function testFuzz_buyInvariant_accountingHolds(uint128 amount, uint256 extraEth) public {
+        amount = uint128(bound(uint256(amount), 1, 100));
+        
+        (,,, uint256 priceWei,,,) = mrkt.items(listingId);
+        uint256 total = priceWei * uint256(amount);
+        
+        extraEth = bound(extraEth, 0, 100 ether - total);
+
+        uint256 sent = total + extraEth;
+
+        vm.prank(buyer);
+        mrkt.buy{value: sent}(listingId, amount);
+
+        _assertAccountingInvariant();
+
+    }
+    function testFuzz_depositAndWithdraw_accountingHolds(uint256 depositAmount) public {
+        depositAmount = bound(depositAmount, 1, 50 ether);
+        vm.deal(buyer, depositAmount);
+        
+        vm.prank(buyer);
+        mrkt.deposit{value: depositAmount}();
+        _assertAccountingInvariant();
+
+        vm.prank(buyer);
+        mrkt.withdrawForUser(depositAmount);
+        _assertAccountingInvariant();
+    }
+
+    function testFuzz_sellerStats_soldItemCountsCorrectly(uint128 amount) public {
+        amount = uint128(bound(uint256(amount), 1, 100));
+
+        (,,, uint256 priceWei ,,,) = mrkt.items(listingId);
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value: total}(listingId, amount);
+        (,,, uint256 soldItem,,) = mrkt.sellerStats(seller);
+        assertEq(soldItem, uint256(amount));
+    }
+
+    function testFuzz_buyWithDeposit_invariantHolds(uint128 amount) public {
+        amount = uint128(bound(uint256(amount), 1, 100));
+
+        (,,, uint256 priceWei,,,) = mrkt.items(listingId);
+        uint256 total = priceWei* uint256(amount);
+        
+        vm.prank(buyer);
+        mrkt.deposit{value: total}();
+        _assertAccountingInvariant();
+
+        vm.prank(buyer);
+        mrkt.buy(listingId, amount);
+        _assertAccountingInvariant();
+    }
+
+    function testFuzz_vipCashback_platformNeverGoesNegative(uint128 amount) public {
+        amount = uint128(bound(uint256(amount), 1, 50));
+        mrkt.setVip(buyer, true);
+
+        (,,, uint256 priceWei,,,) = mrkt.items(listingId);
+        uint256 total = priceWei * uint256(amount);
+
+        vm.prank(buyer);
+        mrkt.buy{value:total}(listingId, amount);
+
+        (,, uint256 platform) = mrkt.getAccounting();
+        assertGe(platform, 0);
+        _assertAccountingInvariant();
+    }
+
+    
 }
