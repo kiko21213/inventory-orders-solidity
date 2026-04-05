@@ -33,7 +33,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_createOrder_basic() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
         emit log_address(o.buyer);
@@ -41,7 +40,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_withinWindow() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.warp(block.timestamp + 29);
@@ -63,7 +61,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_afterWindow_reverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         OrderRegistry.Order memory o = reg.getOrder(id);
@@ -78,7 +75,6 @@ contract OrderRegistryTest is Test {
         emit log_string("now expecting revert...");
     }
     function test_cancelOrder_vip_aftherWindow_reverts() public {
-        vm.prank(buyer);
         uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
         vm.warp(o.createdAt + WINDOW_VIP + 1);
@@ -88,7 +84,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_notBuyer_reverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.prank(attacker);
@@ -98,7 +93,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_markPaid_adminOnlyAndSetsPaid() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.prank(buyer);
@@ -114,7 +108,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_afterPaid_reverts_andDoesNotRelease() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         reg.markPaid(id);
@@ -128,7 +121,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_markPaid_twiceReverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         reg.markPaid(id);
@@ -138,7 +130,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_twiceReverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.prank(buyer);
@@ -150,7 +141,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_releaseReverts_stateRollsBack() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
         inv.setReleaseRevert(true);
         vm.prank(buyer);
@@ -174,7 +164,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_markPaid_finalizeReverts_stateRollsBack() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         inv.setFinalizeRevert(true);
@@ -195,7 +184,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancelOrder_emits_OrderCancelled() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.expectEmit(true, true, true, true);
@@ -206,7 +194,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_markPaid_emits_OrderPaid() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.expectEmit(true, true, true, true);
@@ -257,7 +244,6 @@ contract OrderRegistryTest is Test {
     }
 
     function testFuzz_cancelWindow_nonVip_timeBoundary(uint256 dt) public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         OrderRegistry.Order memory o = reg.getOrder(id);
@@ -272,7 +258,6 @@ contract OrderRegistryTest is Test {
         reg.cancelOrder(id);
     }
     function testFuzz_cancelOrder_vip_timeBoundary(uint256 dt) public {
-        vm.prank(buyer);
         uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
         dt = bound(dt,0,3600);
@@ -285,7 +270,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_markPaid_afterCancel_reverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         vm.prank(buyer);
@@ -296,7 +280,6 @@ contract OrderRegistryTest is Test {
     }
 
     function test_cancel_afterPaid_reverts() public {
-        vm.prank(buyer);
         uint256 id = _createNonVip();
 
         reg.markPaid(id);
