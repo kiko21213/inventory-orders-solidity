@@ -36,6 +36,8 @@ contract MarketPlace {
         bool isDelisting;
     }
     struct SellerStats{
+        bool exists;
+        string username;
         uint256 activeListingItem;
         uint256 soldItem;
         uint256 soldOrders;
@@ -80,6 +82,7 @@ contract MarketPlace {
     event ItemDelisting(uint256 indexed itemId, bool isDelisting);
     event NonVipLimitSet(uint128 indexed oldLimit,uint128 newLimit);
     event VipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
+    event AddNameSeller(address indexed seller);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -115,6 +118,8 @@ contract MarketPlace {
     error CannotBeEqual();
     error InvalidLimit();
     error LimitReached();
+    error SellerNotFound();
+    error NameAlredySet();
 
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
@@ -132,6 +137,17 @@ contract MarketPlace {
     }
 
     /* ========== ADMIN ACTION ========== */
+    function addNameSeller(address seller , string memory name) external onlyAdmin {
+        if(!sellerStats[seller].exists) revert SellerNotFound();
+        if(bytes(sellerStats[seller].username).length > 0) revert NameAlredySet();
+        sellerStats[seller].username = name;
+        emit AddNameSeller(seller);
+    }
+    function __ensureSellerExists(address seller) internal {
+        if(!sellerStats[seller].exists){
+            sellerStats[seller].exists = true;
+        }
+    }
     function setVip(address buyerVip, bool status) external onlyAdmin {
         if (buyerVip == address(0)) revert ZeroAddress();
         isVip[buyerVip] = status;
@@ -193,10 +209,10 @@ contract MarketPlace {
         if (!isSeller[msg.sender]) revert SellerNotApproved();
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
+        __ensureSellerExists(msg.sender);
         if(sellerStats[msg.sender].activeListingItem >= __maxLimitFor(msg.sender)) revert LimitReached();
         uint256 inventoryId = inventory.addItem(_name, _quantity);
         uint256 listingId = nextItemListingId++;
-        sellerStats[msg.sender].activeListingItem += 1;
 
         items[listingId] = ListingItem({
             displayName: _name,
@@ -207,7 +223,7 @@ contract MarketPlace {
             isActive: true,
             isDelisting: false
         });
-
+        sellerStats[msg.sender].activeListingItem++;
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
     }
 
@@ -380,4 +396,5 @@ contract MarketPlace {
     function getAccounting() external view returns (uint256 market, uint256 users, uint256 platform) {
         return (address(this).balance, totalUserBalances, totalPlatformBalance);
     }
+
 }
