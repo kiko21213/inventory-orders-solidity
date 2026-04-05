@@ -20,13 +20,13 @@ contract OrderRegistryTest is Test {
         reg = new OrderRegistry(address(inv));
     }
 
-    function _createNonVip() internal returns (uint256 id){
+    function _createNonVip() internal returns (uint256 id) {
         vm.prank(buyer);
 
-        id = reg.createOrder(1,2, WINDOW_NON_VIP);
+        id = reg.createOrder(1, 2, WINDOW_NON_VIP);
     }
 
-    function _createVip() internal returns(uint256 id){
+    function _createVip() internal returns (uint256 id) {
         vm.prank(buyer);
 
         id = reg.createOrder(1, 2, WINDOW_VIP);
@@ -52,6 +52,7 @@ contract OrderRegistryTest is Test {
         emit log_string(" 0=Created, 1=Cancelled, 2=Paid");
         assertEq(uint256(o.state), uint256(OrderRegistry.OrderState.Cancelled));
     }
+
     function test_cancelOrder_vip_withinWindow() public {
         uint256 id = _createVip();
         vm.warp(block.timestamp + 9 minutes);
@@ -74,6 +75,7 @@ contract OrderRegistryTest is Test {
         emit log_uint(block.timestamp);
         emit log_string("now expecting revert...");
     }
+
     function test_cancelOrder_vip_aftherWindow_reverts() public {
         uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
@@ -257,13 +259,14 @@ contract OrderRegistryTest is Test {
         }
         reg.cancelOrder(id);
     }
+
     function testFuzz_cancelOrder_vip_timeBoundary(uint256 dt) public {
         uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
-        dt = bound(dt,0,3600);
+        dt = bound(dt, 0, 3600);
         vm.warp(uint256(o.createdAt) + dt);
         vm.prank(buyer);
-        if(dt > WINDOW_VIP){
+        if (dt > WINDOW_VIP) {
             vm.expectRevert(OrderRegistry.CancelOrderPassed.selector);
         }
         reg.cancelOrder(id);
@@ -297,23 +300,21 @@ contract OrderRegistryTest is Test {
         vm.prank(buyer);
         reg.cancelOrder(id);
     }
+
     function test_cancelOrder_vip_exactBoundary_passes() public {
         uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
-        vm.warp(o.createdAt+ WINDOW_VIP);
+        vm.warp(o.createdAt + WINDOW_VIP);
         vm.prank(buyer);
         reg.cancelOrder(id);
     }
 
     function test_cancelOrder_vip_failsAt11min_nonVipWouldPass() public {
-        uint256 id =  _createVip();
+        uint256 id = _createVip();
         OrderRegistry.Order memory o = reg.getOrder(id);
         vm.warp(o.createdAt + 11 minutes);
         vm.prank(buyer);
         vm.expectRevert(OrderRegistry.CancelOrderPassed.selector);
         reg.cancelOrder(id);
-
     }
-
-
 }

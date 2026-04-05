@@ -35,7 +35,8 @@ contract MarketPlace {
         bool isActive;
         bool isDelisting;
     }
-    struct SellerStats{
+
+    struct SellerStats {
         bool exists;
         string username;
         uint256 activeListingItem;
@@ -82,7 +83,7 @@ contract MarketPlace {
     event CashbackPaid(address indexed buyer, uint256 amount);
     event ItemActiveSet(uint256 indexed itemId, bool isActive);
     event ItemDelisting(uint256 indexed itemId, bool isDelisting);
-    event NonVipLimitSet(uint128 indexed oldLimit,uint128 newLimit);
+    event NonVipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
     event VipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
     event AddNameSeller(address indexed seller);
     /* ========== MODIFIERS ========== */
@@ -139,17 +140,19 @@ contract MarketPlace {
     }
 
     /* ========== ADMIN ACTION ========== */
-    function addNameSeller(address seller , string memory name) external onlyAdmin {
-        if(!sellerStats[seller].exists) revert SellerNotFound();
-        if(bytes(sellerStats[seller].username).length > 0) revert NameAlredySet();
+    function addNameSeller(address seller, string memory name) external onlyAdmin {
+        if (!sellerStats[seller].exists) revert SellerNotFound();
+        if (bytes(sellerStats[seller].username).length > 0) revert NameAlredySet();
         sellerStats[seller].username = name;
         emit AddNameSeller(seller);
     }
+
     function __ensureSellerExists(address seller) internal {
-        if(!sellerStats[seller].exists){
+        if (!sellerStats[seller].exists) {
             sellerStats[seller].exists = true;
         }
     }
+
     function setVip(address buyerVip, bool status) external onlyAdmin {
         if (buyerVip == address(0)) revert ZeroAddress();
         isVip[buyerVip] = status;
@@ -187,22 +190,24 @@ contract MarketPlace {
         cashbackBps = _newCashback;
         emit CashbackSet(msg.sender, oldCashback, _newCashback);
     }
+
     function setLimitNonVip(uint128 _newLimit) public onlyAdmin {
-        if(_newLimit == maxListingItemNonVip) revert CannotBeEqual();
-        if(_newLimit == 0) revert InvalidLimit();
+        if (_newLimit == maxListingItemNonVip) revert CannotBeEqual();
+        if (_newLimit == 0) revert InvalidLimit();
         uint128 oldLimit = maxListingItemNonVip;
         maxListingItemNonVip = _newLimit;
         emit NonVipLimitSet(oldLimit, _newLimit);
     }
-        function setLimitVip(uint128 _newLimit) public onlyAdmin {
-        if(_newLimit == maxListingItemVip) revert CannotBeEqual();
-        if(_newLimit == 0) revert InvalidLimit();
+
+    function setLimitVip(uint128 _newLimit) public onlyAdmin {
+        if (_newLimit == maxListingItemVip) revert CannotBeEqual();
+        if (_newLimit == 0) revert InvalidLimit();
         uint128 oldLimit = maxListingItemVip;
         maxListingItemVip = _newLimit;
         emit VipLimitSet(oldLimit, _newLimit);
     }
 
-    function __maxLimitFor(address seller) internal view returns(uint128) {
+    function __maxLimitFor(address seller) internal view returns (uint128) {
         return isVip[seller] ? maxListingItemVip : maxListingItemNonVip;
     }
 
@@ -212,7 +217,7 @@ contract MarketPlace {
         if (_price == 0) revert PriceCantBeZero();
         if (_quantity == 0) revert QuantityCantBeZero();
         __ensureSellerExists(msg.sender);
-        if(sellerStats[msg.sender].activeListingItem >= __maxLimitFor(msg.sender)) revert LimitReached();
+        if (sellerStats[msg.sender].activeListingItem >= __maxLimitFor(msg.sender)) revert LimitReached();
         uint256 inventoryId = inventory.addItem(_name, _quantity);
         uint256 listingId = nextItemListingId++;
 
@@ -254,23 +259,24 @@ contract MarketPlace {
         ListingItem storage it = items[_itemId];
         if (it.isDelisting) revert ItemDelisted();
         bool wasActive = it.isActive;
-        if(wasActive == _isActive) return;  
-        if(_isActive){
+        if (wasActive == _isActive) return;
+        if (_isActive) {
             uint128 limit = __maxLimitFor(it.seller);
-            if(sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
+            if (sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
             sellerStats[it.seller].activeListingItem++;
-        }else{
+        } else {
             sellerStats[it.seller].activeListingItem--;
         }
         it.isActive = _isActive;
         emit ItemActiveSet(_itemId, _isActive);
     }
-        function delistingItem(uint256 _itemId, bool _isDelisting) external OnlyAdminOrSeller(_itemId) {
+
+    function delistingItem(uint256 _itemId, bool _isDelisting) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
         bool wasActive = it.isActive;
         it.isDelisting = _isDelisting;
         if (_isDelisting) {
-            if(wasActive){
+            if (wasActive) {
                 sellerStats[it.seller].activeListingItem--;
             }
             it.isActive = false;
@@ -278,13 +284,13 @@ contract MarketPlace {
         } else {
             uint128 qty = inventory.getItem(it.inventoryItemId).quantity;
             bool active = qty > 0;
-            if(active && !wasActive){
+            if (active && !wasActive) {
                 uint128 limit = __maxLimitFor(it.seller);
-                if(sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
+                if (sellerStats[it.seller].activeListingItem >= limit) revert LimitReached();
                 sellerStats[it.seller].activeListingItem++;
             }
-            if(!active && wasActive){
-               sellerStats[it.seller].activeListingItem--;
+            if (!active && wasActive) {
+                sellerStats[it.seller].activeListingItem--;
             }
             it.isActive = active;
             emit ItemActiveSet(_itemId, active);
@@ -313,29 +319,33 @@ contract MarketPlace {
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
-    function __calcFee(uint256 total , address seller) internal view returns(uint256) {
-        uint256 fee =  total * feesBps / BPS;
+
+    function __calcFee(uint256 total, address seller) internal view returns (uint256) {
+        uint256 fee = total * feesBps / BPS;
         uint256 vipFee = total * vipFeesBps / BPS;
-        return isVip[seller] ? vipFee : fee; 
+        return isVip[seller] ? vipFee : fee;
     }
 
-    function __calcCashBack(uint256 total , uint256 appliedFee) internal view returns (uint256){
-        if(!isVip[msg.sender]) return 0;
+    function __calcCashBack(uint256 total, uint256 appliedFee) internal view returns (uint256) {
+        if (!isVip[msg.sender]) return 0;
         uint256 cashback = total * cashbackBps / BPS;
         return cashback > appliedFee ? appliedFee : cashback;
     }
-    function __handlePayment(uint256 total, uint256 cashback, uint256 appliedFee, address seller, uint128 _amount) internal {
+
+    function __handlePayment(uint256 total, uint256 cashback, uint256 appliedFee, address seller, uint128 _amount)
+        internal
+    {
         uint256 credit = userBalances[msg.sender];
         uint256 fromCredit = credit > total ? total : credit;
         uint256 rest = total - fromCredit;
-        if(msg.value < rest) revert WrongPayment();
+        if (msg.value < rest) revert WrongPayment();
         uint256 refund = msg.value - rest;
 
-        if (fromCredit > 0){
+        if (fromCredit > 0) {
             userBalances[msg.sender] -= fromCredit;
             totalUserBalances -= fromCredit;
         }
-        if(refund > 0){
+        if (refund > 0) {
             userBalances[msg.sender] += refund;
             totalUserBalances += refund;
             emit RefundMoney(msg.sender, refund);
@@ -347,13 +357,14 @@ contract MarketPlace {
         sellerStats[seller].soldItem += _amount;
         sellerStats[seller].earnWei += sellerPayout;
 
-        if(cashback > 0){
+        if (cashback > 0) {
             userBalances[msg.sender] += cashback;
             totalUserBalances += cashback;
             emit CashbackPaid(msg.sender, cashback);
         }
         totalPlatformBalance += (appliedFee - cashback);
     }
+
     function __autoInactive(uint256 _itemId, uint256 _inventoryItemId) internal {
         IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
         if (invItem.quantity == 0 && items[_itemId].isActive) {
@@ -404,5 +415,4 @@ contract MarketPlace {
     function getAccounting() external view returns (uint256 market, uint256 users, uint256 platform) {
         return (address(this).balance, totalUserBalances, totalPlatformBalance);
     }
-
 }

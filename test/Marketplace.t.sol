@@ -637,7 +637,6 @@ contract Marketplace is Test {
         mrkt.buy{value: total}(listingId, amount);
     }
 
-
     function test_setMaxListingItemsNonVipOnlyAdmin() public {
         address attacker = makeAddr("attacker");
 
@@ -645,6 +644,7 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.NotAnAdmin.selector);
         mrkt.setLimitNonVip(2);
     }
+
     function test_setMaxListingItemsVipOnlyAdmin() public {
         address attacker = makeAddr("attacker");
 
@@ -657,39 +657,40 @@ contract Marketplace is Test {
         vm.expectRevert(MarketPlace.InvalidLimit.selector);
         mrkt.setLimitVip(0);
     }
+
     function test_setMaxListingItemsNonVipRejectsZero() public {
         vm.expectRevert(MarketPlace.InvalidLimit.selector);
         mrkt.setLimitNonVip(0);
     }
+
     function test_reactiveAfterCreatingNewHitsLimit() public {
-     vm.startPrank(seller);
+        vm.startPrank(seller);
 
-    uint256 limit = mrkt.maxListingItemNonVip();
-    
-    for (uint256 i = 0; i < limit - 1; i++) {
-        mrkt.createItem("s", 1, 1 ether);
-    }
+        uint256 limit = mrkt.maxListingItemNonVip();
 
-    uint256 oldId = listingId;
-    mrkt.setItemActive(oldId, false);
+        for (uint256 i = 0; i < limit - 1; i++) {
+            mrkt.createItem("s", 1, 1 ether);
+        }
 
-    mrkt.createItem("a", 1, 1 ether);
+        uint256 oldId = listingId;
+        mrkt.setItemActive(oldId, false);
 
-    vm.expectRevert(MarketPlace.LimitReached.selector);
-    mrkt.setItemActive(oldId, true);
+        mrkt.createItem("a", 1, 1 ether);
 
-    vm.stopPrank();
+        vm.expectRevert(MarketPlace.LimitReached.selector);
+        mrkt.setItemActive(oldId, true);
 
+        vm.stopPrank();
     }
 
     //================== FUZZ
 
     function testFuzz_buyInvariant_accountingHolds(uint128 amount, uint256 extraEth) public {
         amount = uint128(bound(uint256(amount), 1, 100));
-        
+
         (,,, uint256 priceWei,,,) = mrkt.items(listingId);
         uint256 total = priceWei * uint256(amount);
-        
+
         extraEth = bound(extraEth, 0, 100 ether - total);
 
         uint256 sent = total + extraEth;
@@ -698,12 +699,12 @@ contract Marketplace is Test {
         mrkt.buy{value: sent}(listingId, amount);
 
         _assertAccountingInvariant();
-
     }
+
     function testFuzz_depositAndWithdraw_accountingHolds(uint256 depositAmount) public {
         depositAmount = bound(depositAmount, 1, 50 ether);
         vm.deal(buyer, depositAmount);
-        
+
         vm.prank(buyer);
         mrkt.deposit{value: depositAmount}();
         _assertAccountingInvariant();
@@ -716,7 +717,7 @@ contract Marketplace is Test {
     function testFuzz_sellerStats_soldItemCountsCorrectly(uint128 amount) public {
         amount = uint128(bound(uint256(amount), 1, 100));
 
-        (,,, uint256 priceWei ,,,) = mrkt.items(listingId);
+        (,,, uint256 priceWei,,,) = mrkt.items(listingId);
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
@@ -729,8 +730,8 @@ contract Marketplace is Test {
         amount = uint128(bound(uint256(amount), 1, 100));
 
         (,,, uint256 priceWei,,,) = mrkt.items(listingId);
-        uint256 total = priceWei* uint256(amount);
-        
+        uint256 total = priceWei * uint256(amount);
+
         vm.prank(buyer);
         mrkt.deposit{value: total}();
         _assertAccountingInvariant();
@@ -748,12 +749,10 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value:total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount);
 
         (,, uint256 platform) = mrkt.getAccounting();
         assertGe(platform, 0);
         _assertAccountingInvariant();
     }
-
-    
 }
