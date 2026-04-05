@@ -302,41 +302,15 @@ contract MarketPlace {
         if (msg.sender == it.seller) revert SelfPurchase();
 
         uint256 total = it.priceWei * uint256(_amount);
+        uint256 appliedFee = __calcFee(total, it.seller);
+        uint256 cashback = __calcCashBack(total, appliedFee);
+        __handlePayment(total, cashback, appliedFee, it.seller, _amount);
 
-        uint256 fee = total * feesBps / BPS;
-        uint256 vipFee = total * vipFeesBps / BPS;
-        uint256 appliedFee = isVip[it.seller] ? vipFee : fee;
-
-        uint256 cashback = total * cashbackBps / BPS;
-        if (!isVip[msg.sender]) {
-            cashback = 0;
-        }
-        if (cashback > fee) cashback = appliedFee;
-
-        uint256 credit = userBalances[msg.sender];
-        uint256 fromCredit = credit > total ? total : credit;
-        uint256 rest = total - fromCredit;
-        if (msg.value < rest) revert WrongPayment();
-        uint256 refund = msg.value - rest;
-
-        if (fromCredit > 0) {
-            userBalances[msg.sender] -= fromCredit;
-            totalUserBalances -= fromCredit;
-        }
-        if (refund > 0) {
-            userBalances[msg.sender] += refund;
-            totalUserBalances += refund;
-            emit RefundMoney(msg.sender, refund);
-        }
         uint64 cancelOrder = isVip[it.seller] ? CANCEL_ORDER_VIP : CANCEL_ORDER_NON_VIP;
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount, cancelOrder);
         orderRegistry.markPaid(orderId);
         __autoInactive(_itemId, it.inventoryItemId);
-        uint256 sellerPayout = total - appliedFee;
-        userBalances[it.seller] += sellerPayout;
-        totalUserBalances += sellerPayout;
-        sellerStats[it.seller].soldItem += _amount;
-        sellerStats[it.seller].earnWei += sellerPayout;
+
 
         if (cashback > 0) {
             userBalances[msg.sender] += cashback;
@@ -347,7 +321,46 @@ contract MarketPlace {
         totalPlatformBalance += (appliedFee - cashback);
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
+    function __calcFee(uint256 total , address seller) internal view returns(uint256) {
+        uint256 fee =  total * feesBps / BPS;
+        uint256 vipFee = total * vipFeesBps / BPS;
+        return isVip[seller] ? vipFee : fee; 
+    }
 
+    function __calcCashBack(uint256 total , uint256 appliedFee) internal view returns (uint256){
+        if(!isVip[msg.sender]) return 0;
+        uint256 cashback = total * cashbackBps / BPS;
+        return cashback > appliedFee ? appliedFee : cashback;
+    }
+    function __handlePayment(uint256 total, uint256 cashback, uint256 appliedFee, address seller, uint128 _amount) internal {
+        uint256 credit = userBalances[msg.sender];
+        uint256 fromCredit = credit > total ? total : credit;
+        uint256 rest = total - fromCredit;
+        if(msg.value < rest) revert WrongPayment();
+        uint256 refund = msg.value - rest;
+
+        if (fromCredit > 0){
+            userBalances[msg.sender] -= fromCredit;
+            totalUserBalances -= fromCredit;
+        }
+        if(refund > 0){
+            userBalances[msg.sender] += refund;
+            totalUserBalances += refund;
+            emit RefundMoney(msg.sender, refund);
+        }
+
+        uint256 sellerPayout = total - appliedFee;
+        userBalances[seller] += sellerPayout;
+        totalUserBalances += sellerPayout;
+        sellerStats[seller].soldItem += _amount;
+        sellerStats[seller].earnWei += sellerPayout;
+
+        if(cashback > 0){
+            userBalances[msg.sender] += cashback;
+            totalUserBalances += cashback;
+            emit CashbackPaid(msg.sender, cashback);
+        }
+    }
     function __autoInactive(uint256 _itemId, uint256 _inventoryItemId) internal {
         IInventory.Item memory invItem = inventory.getItem(_inventoryItemId);
         if (invItem.quantity == 0 && items[_itemId].isActive) {
