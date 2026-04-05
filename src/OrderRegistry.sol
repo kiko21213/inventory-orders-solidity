@@ -20,6 +20,7 @@ contract OrderRegistry {
         uint256 itemId;
         uint128 amount;
         uint64 createdAt;
+        uint64 cancelOrder;
         bool exists;
         OrderState state;
     }
@@ -28,7 +29,6 @@ contract OrderRegistry {
     IInventoryReg public inventory;
 
     uint256 public nextOrderId;
-    uint256 public constant CANCEL_ORDER = 30 minutes;
     mapping(uint256 => Order) private orders;
     address public operator;
 
@@ -77,7 +77,7 @@ contract OrderRegistry {
     }
 
     /* ========== ORDER LOGIC ========== */
-    function createOrder(uint256 itemId, uint128 amount) external returns (uint256 orderId) {
+    function createOrder(uint256 itemId, uint128 amount, uint64 _cancelOrder) external returns (uint256 orderId) {
         if (amount == 0) revert AmountZero();
 
         // reserve FIRST
@@ -89,6 +89,7 @@ contract OrderRegistry {
             itemId: itemId,
             amount: amount,
             createdAt: uint64(block.timestamp),
+            cancelOrder: _cancelOrder,
             exists: true,
             state: OrderState.Created
         });
@@ -99,7 +100,7 @@ contract OrderRegistry {
     function cancelOrder(uint256 orderId) external {
         Order storage o = orders[orderId];
         if (!o.exists) revert OrderDoesNotExist();
-        if (block.timestamp > o.createdAt + CANCEL_ORDER) revert CancelOrderPassed();
+        if (block.timestamp > o.createdAt + o.cancelOrder) revert CancelOrderPassed();
         if (o.buyer != msg.sender) revert NotBuyer();
         if (o.state != OrderState.Created) revert InvalidState();
 

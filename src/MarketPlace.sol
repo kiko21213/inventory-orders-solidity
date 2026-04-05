@@ -19,7 +19,7 @@ interface IInventory {
 }
 
 interface IOrderRegistry {
-    function createOrder(uint256 itemId, uint128 amount) external returns (uint256 orderId);
+    function createOrder(uint256 itemId, uint128 amount, uint64 _cancelOrder) external returns (uint256 orderId);
     function markPaid(uint256 orderId) external;
 }
 
@@ -61,6 +61,8 @@ contract MarketPlace {
     uint256 public cashbackBps;
     uint128 public maxListingItemNonVip;
     uint128 public maxListingItemVip;
+    uint64 public constant CANCEL_ORDER_VIP = 10 minutes;
+    uint64 public constant CANCEL_ORDER_NON_VIP = 30 minutes;
     /* ========== EVENTS ========== */
     event Withdraw(address indexed who, uint256 amount);
     event CreateListingItem(uint256 indexed itemId, address indexed who, uint128 quantity, uint256 price);
@@ -326,8 +328,8 @@ contract MarketPlace {
             totalUserBalances += refund;
             emit RefundMoney(msg.sender, refund);
         }
-
-        orderId = orderRegistry.createOrder(it.inventoryItemId, _amount);
+        uint64 cancelOrder = isVip[it.seller] ? CANCEL_ORDER_VIP : CANCEL_ORDER_NON_VIP;
+        orderId = orderRegistry.createOrder(it.inventoryItemId, _amount, cancelOrder);
         orderRegistry.markPaid(orderId);
         __autoInactive(_itemId, it.inventoryItemId);
         uint256 sellerPayout = total - appliedFee;
