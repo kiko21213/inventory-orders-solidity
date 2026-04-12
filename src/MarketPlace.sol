@@ -424,14 +424,6 @@ contract MarketPlace {
         }
     }
 
-    function __refundExtra(uint256 _value, uint256 _price) internal {
-        uint256 refund = _value - _price;
-
-        (bool sent,) = payable(msg.sender).call{value: refund}("");
-        if (!sent) revert Failed();
-        emit RefundMoney(msg.sender, refund);
-    }
-
     function deposit() external payable {
         if (msg.value == 0) revert Failed();
         userBalances[msg.sender] += msg.value;
@@ -458,6 +450,8 @@ contract MarketPlace {
         totalPlatformBalance -= _amount;
         (bool sent,) = payable(admin).call{value: _amount}("");
         if (!sent) revert Failed();
+
+        emit WithdrawForPlatform(admin, _amount);
     }
 
     /* ========== GET ACTION ========== */
