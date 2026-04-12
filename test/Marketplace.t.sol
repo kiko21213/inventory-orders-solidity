@@ -93,7 +93,24 @@ contract Marketplace is Test {
         (uint256 marketBalance, uint256 totalUsers, uint256 totalPlatform) = mrkt.getAccounting();
         assertEq(marketBalance, totalUsers + totalPlatform);
     }
+    function test_promoCode() public {
+        uint256 discountBps = 1000;
+        vm.prank(seller);
+        mrkt.createPromoCode(listingId, "SUMMER123", discountBps, 5);
 
+        (,,, uint256 priceWei ,,,) = mrkt.items(listingId);
+        uint256 total = priceWei * 1;
+        uint256 discounted = total - (total * discountBps / 10_000);
+        uint256 expectedFee = discounted * mrkt.feesBps() / 10_000;
+        uint256 expectedPayout = discounted - expectedFee;
+
+        vm.prank(buyer);
+        mrkt.buy{value: discounted}(listingId, 1, "SUMMER123");
+
+        assertEq(mrkt.userBalances(seller), expectedPayout);
+        assertEq(mrkt.totalPlatformBalance(), expectedFee);
+        _assertAccountingInvariant();
+    }
     function test_buyWithDeposit() public {
         uint128 amount = 3;
 
