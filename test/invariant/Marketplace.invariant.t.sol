@@ -41,7 +41,7 @@ contract MarketPlaceHandler is Test {
         if (buyer.balance < total) return;
 
         vm.prank(buyer);
-        try mrkt.buy{value: total}(listingId, amount) {} catch {}
+        try mrkt.buy{value: total}(listingId, amount, "") {} catch {}
     }
 
     function deposit(uint256 amount) external {

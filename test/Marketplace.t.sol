@@ -79,7 +79,7 @@ contract Marketplace is Test {
         vm.expectEmit(true, true, false, true);
         emit Purchase(listingId, buyer, amount, 0);
 
-        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount, "");
         assertEq(orderId, 0);
 
         assertEq(mrkt.userBalances(seller), sellerPayout);
@@ -107,7 +107,7 @@ contract Marketplace is Test {
         assertEq(mrkt.userBalances(buyer), total);
 
         vm.prank(buyer);
-        uint256 orderId = mrkt.buy(listingId, amount);
+        uint256 orderId = mrkt.buy(listingId, amount, "");
         assertEq(orderId, 0);
 
         assertEq(mrkt.userBalances(buyer), 0);
@@ -140,7 +140,7 @@ contract Marketplace is Test {
         assertEq(mrkt.userBalances(buyer), depositPart);
 
         vm.prank(buyer);
-        uint256 orderId = mrkt.buy{value: msgValuePart}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: msgValuePart}(listingId, amount, "");
         assertEq(orderId, 0);
 
         assertEq(mrkt.userBalances(buyer), 0);
@@ -171,7 +171,7 @@ contract Marketplace is Test {
         uint256 sellerPayout = total - vipFee;
 
         vm.prank(buyer);
-        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount, "");
         assertEq(orderId, 0);
 
         assertEq(mrkt.userBalances(seller), sellerPayout);
@@ -203,7 +203,7 @@ contract Marketplace is Test {
         vm.expectEmit(true, false, false, true);
         emit CashbackPaid(buyer, cashback);
 
-        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount, "");
         assertEq(orderId, 0);
         assertEq(mrkt.userBalances(seller), sellerPayout);
         assertEq(mrkt.userBalances(buyer), cashback);
@@ -233,7 +233,7 @@ contract Marketplace is Test {
         vm.expectEmit(true, false, false, true);
         emit RefundMoney(buyer, change);
 
-        uint256 orderId = mrkt.buy{value: sent}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: sent}(listingId, amount, "");
         assertEq(orderId, 0);
         assertEq(mrkt.userBalances(buyer), change);
         assertEq(mrkt.userBalances(seller), sellerPayout);
@@ -256,7 +256,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.WrongPayment.selector);
-        mrkt.buy{value: total - 1}(listingId, amount);
+        mrkt.buy{value: total - 1}(listingId, amount, "");
     }
 
     function test_buyRevertWhenInventoryFrozen() public {
@@ -270,7 +270,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert(Inventory.NotActive.selector);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
     }
 
     function test_buyRevertWhenItemInactive() public {
@@ -285,7 +285,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.ItemInactive.selector);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
     }
 
     function test_buyWorksAfterItemReactivated() public {
@@ -301,7 +301,7 @@ contract Marketplace is Test {
         vm.stopPrank();
 
         vm.prank(buyer);
-        uint256 orderId = mrkt.buy{value: total}(listingId, amount);
+        uint256 orderId = mrkt.buy{value: total}(listingId, amount, "");
         assertEq(orderId, 0);
     }
 
@@ -318,19 +318,19 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(soldOutItemId, amount);
+        mrkt.buy{value: total}(soldOutItemId, amount, "");
         (,,,,, bool isActiveAfter,) = mrkt.items(soldOutItemId);
         assertFalse(isActiveAfter);
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.ItemInactive.selector);
-        mrkt.buy{value: total}(soldOutItemId, amount);
+        mrkt.buy{value: total}(soldOutItemId, amount, "");
     }
 
     function test_buyRevertAmountCantBeZero() public {
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.AmountCantBeZero.selector);
-        mrkt.buy{value: 0}(listingId, 0);
+        mrkt.buy{value: 0}(listingId, 0, "");
     }
 
     function test_buyRevertItemNotFound() public {
@@ -338,7 +338,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.ItemNotFound.selector);
-        mrkt.buy{value: 1}(fakeId, 1);
+        mrkt.buy{value: 1}(fakeId, 1, "");
     }
 
     function test_buyVipCashbackCappedToFee() public {
@@ -356,7 +356,7 @@ contract Marketplace is Test {
         vm.prank(buyer);
         vm.expectEmit(true, false, false, true);
         emit CashbackPaid(buyer, fee);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
         assertEq(mrkt.userBalances(buyer), fee);
         assertEq(mrkt.totalPlatformBalance(), 0);
         _assertAccountingInvariant();
@@ -367,7 +367,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert();
-        mrkt.buy{value: 1 ether}(listingId, tooMuchAmount);
+        mrkt.buy{value: 1 ether}(listingId, tooMuchAmount, "");
     }
 
     function test_buyDelistingItem() public {
@@ -376,7 +376,7 @@ contract Marketplace is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MarketPlace.ItemDelisted.selector);
-        mrkt.buy{value: 1 ether}(listingId, 1);
+        mrkt.buy{value: 1 ether}(listingId, 1, "");
     }
 
     function test_delistingBlockSetItemPrice() public {
@@ -426,7 +426,7 @@ contract Marketplace is Test {
         uint256 xListingId = mrkt.nextItemListingId() - 1;
 
         vm.prank(buyer);
-        mrkt.buy{value: 1 ether}(xListingId, 1);
+        mrkt.buy{value: 1 ether}(xListingId, 1, "");
 
         (, uint256 inventoryItemId,,,,,) = mrkt.items(xListingId);
 
@@ -485,7 +485,7 @@ contract Marketplace is Test {
         uint256 sellerPayout = total - fee;
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
         assertEq(mrkt.userBalances(seller), sellerPayout);
 
         uint256 sellerEthBefore = seller.balance;
@@ -508,7 +508,7 @@ contract Marketplace is Test {
         uint256 fee = total * mrkt.feesBps() / 10_000;
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
         assertEq(mrkt.totalPlatformBalance(), fee);
 
         uint256 adminEthBefore = address(this).balance;
@@ -541,7 +541,7 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
 
         uint256 sellerBal = mrkt.userBalances(seller);
         assertGt(sellerBal, 0);
@@ -564,7 +564,7 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
 
         uint256 platformBal = mrkt.totalPlatformBalance();
         assertGt(mrkt.totalPlatformBalance(), 0);
@@ -581,7 +581,7 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
 
         address attacker = makeAddr("attacker");
         vm.prank(attacker);
@@ -608,7 +608,7 @@ contract Marketplace is Test {
         uint256 total = newPriceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
 
         uint256 fee = total * mrkt.feesBps() / 10_000;
         uint256 sellerPayout = total - fee;
@@ -634,7 +634,7 @@ contract Marketplace is Test {
 
         vm.prank(seller);
         vm.expectRevert(MarketPlace.SelfPurchase.selector);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
     }
 
     function test_setMaxListingItemsNonVipOnlyAdmin() public {
@@ -696,7 +696,7 @@ contract Marketplace is Test {
         uint256 sent = total + extraEth;
 
         vm.prank(buyer);
-        mrkt.buy{value: sent}(listingId, amount);
+        mrkt.buy{value: sent}(listingId, amount, "");
 
         _assertAccountingInvariant();
     }
@@ -721,7 +721,7 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
         (,,, uint256 soldItem,,) = mrkt.sellerStats(seller);
         assertEq(soldItem, uint256(amount));
     }
@@ -737,7 +737,7 @@ contract Marketplace is Test {
         _assertAccountingInvariant();
 
         vm.prank(buyer);
-        mrkt.buy(listingId, amount);
+        mrkt.buy(listingId, amount, "");
         _assertAccountingInvariant();
     }
 
@@ -749,7 +749,7 @@ contract Marketplace is Test {
         uint256 total = priceWei * uint256(amount);
 
         vm.prank(buyer);
-        mrkt.buy{value: total}(listingId, amount);
+        mrkt.buy{value: total}(listingId, amount, "");
 
         (,, uint256 platform) = mrkt.getAccounting();
         assertGe(platform, 0);
