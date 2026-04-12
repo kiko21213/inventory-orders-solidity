@@ -344,9 +344,9 @@ contract MarketPlace {
         if(bytes(_promoCode).length > 0){
             discountedTotal = __applyPromoCode(_itemId, _promoCode, total);
         }
-        uint256 appliedFee = __calcFee(total, it.seller);
-        uint256 cashback = __calcCashBack(total, appliedFee);
-        __handlePayment(total, cashback, appliedFee, it.seller, _amount);
+        uint256 appliedFee = __calcFee(discountedTotal, it.seller);
+        uint256 cashback = __calcCashBack(discountedTotal, appliedFee);
+        __handlePayment(discountedTotal, cashback, appliedFee, it.seller, _amount);
 
         uint64 cancelOrder = isVip[it.seller] ? CANCEL_ORDER_VIP : CANCEL_ORDER_NON_VIP;
         orderId = orderRegistry.createOrder(it.inventoryItemId, _amount, cancelOrder);
