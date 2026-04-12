@@ -44,6 +44,13 @@ contract MarketPlace {
         uint256 soldOrders;
         uint256 earnWei;
     }
+    struct PromoCode{
+        uint256 listingId;
+        uint256 discountBps;
+        uint256 maxUses;
+        uint256 usedCount;
+        bool exist;
+    }
     address public admin;
     IOrderRegistry public orderRegistry;
     IInventory public inventory;
@@ -52,6 +59,7 @@ contract MarketPlace {
     mapping(address => bool) isVip;
     mapping(address => bool) isSeller;
     mapping(address => uint256) public userBalances;
+    mapping(bytes32 => PromoCode) public promoCodes;
     // mapping(address => uint256) public activeItemListingCount;
     uint256 public nextItemListingId = 1;
     uint256 public totalUserBalances;
@@ -86,6 +94,8 @@ contract MarketPlace {
     event NonVipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
     event VipLimitSet(uint128 indexed oldLimit, uint128 newLimit);
     event AddNameSeller(address indexed seller);
+    event PromoCodeCreated(bytes32 indexed codehash, uint256 indexed listingId, uint256 discount, uint256 uses);
+    event PromoCodeUsed(bytes32 indexed codeHash, address indexed buyer, uint256 discount);
     /* ========== MODIFIERS ========== */
     modifier onlyAdmin() {
         if (msg.sender != admin) revert NotAnAdmin();
@@ -123,7 +133,11 @@ contract MarketPlace {
     error LimitReached();
     error SellerNotFound();
     error NameAlredySet();
-
+    error DiscountTooHigh();
+    error CodeAlreadyExists();
+    error PromoCodeNotFound();
+    error PromoCodeWrongListing();
+    error PromoCodeExpired();
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
         if (inventoryAddress == address(0)) revert ZeroAddress();
@@ -233,6 +247,24 @@ contract MarketPlace {
         sellerStats[msg.sender].activeListingItem++;
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
     }
+    function createPromoCode(uint256 _listingId, string memory _code , uint256 _discountBps, uint256 _maxUses) external OnlyAdminOrSeller(_listingId){
+        if(_discountBps == 0 || _discountBps > 5_000) revert DiscountTooHigh();
+        if(_maxUses == 0) revert AmountCantBeZero();
+
+        bytes32 codeHash = keccak256(abi.encodePacked(_code));
+        if(promoCodes[codeHash].exist) revert CodeAlreadyExists();
+
+        promoCodes[codeHash] = PromoCode({
+            listingId : _listingId,
+            discountBps : _discountBps,
+            maxUses : _maxUses,
+            usedCount : 0,
+            exist : true
+
+        });
+
+        emit PromoCodeCreated(codeHash, _listingId, _discountBps, _maxUses);
+    }
 
     function setItemPrice(uint256 _itemId, uint256 _newPrice) external OnlyAdminOrSeller(_itemId) {
         ListingItem storage it = items[_itemId];
@@ -299,7 +331,7 @@ contract MarketPlace {
     }
 
     /* ========== USER ACTION ========== */
-    function buy(uint256 _itemId, uint128 _amount) external payable returns (uint256 orderId) {
+    function buy(uint256 _itemId, uint128 _amount, string memory _promoCode) external payable returns (uint256 orderId) {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
         if (it.isDelisting) revert ItemDelisted();
@@ -308,6 +340,10 @@ contract MarketPlace {
         if (msg.sender == it.seller) revert SelfPurchase();
 
         uint256 total = it.priceWei * uint256(_amount);
+        uint256 discountedTotal = total;
+        if(bytes(_promoCode).length > 0){
+            discountedTotal = __applyPromoCode(_itemId, _promoCode, total);
+        }
         uint256 appliedFee = __calcFee(total, it.seller);
         uint256 cashback = __calcCashBack(total, appliedFee);
         __handlePayment(total, cashback, appliedFee, it.seller, _amount);
@@ -319,7 +355,20 @@ contract MarketPlace {
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
+    function __applyPromoCode(uint256 _itemId, string memory _code, uint256 total) internal returns(uint256 discountedTotal){
+        bytes32 codeHash = keccak256(abi.encodePacked(_code));
+        PromoCode storage promo = promoCodes[codeHash];
 
+        if(!promo.exist) revert PromoCodeNotFound();
+        if(promo.listingId != _itemId) revert PromoCodeWrongListing();
+        if(promo.usedCount >= promo.maxUses) revert PromoCodeExpired();
+        promo.usedCount++;
+
+        uint256 discount = total * promo.discountBps / BPS;
+        discountedTotal = total - discount;
+
+        emit PromoCodeUsed(codeHash, msg.sender, discount);
+    }
     function __calcFee(uint256 total, address seller) internal view returns (uint256) {
         uint256 fee = total * feesBps / BPS;
         uint256 vipFee = total * vipFeesBps / BPS;
