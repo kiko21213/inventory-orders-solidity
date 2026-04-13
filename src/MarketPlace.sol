@@ -260,9 +260,8 @@ contract MarketPlace {
         bytes32 codeHash = keccak256(abi.encodePacked(_code));
         if (promoCodes[codeHash].exist) revert CodeAlreadyExists();
 
-        promoCodes[codeHash] = PromoCode({
-            listingId: _listingId, discountBps: _discountBps, maxUses: _maxUses, usedCount: 0, exist: true
-        });
+        promoCodes[codeHash] =
+            PromoCode({listingId: _listingId, discountBps: _discountBps, maxUses: _maxUses, usedCount: 0, exist: true});
 
         emit PromoCodeCreated(codeHash, _listingId, _discountBps, _maxUses);
     }
