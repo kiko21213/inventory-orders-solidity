@@ -44,7 +44,8 @@ contract MarketPlace {
         uint256 soldOrders;
         uint256 earnWei;
     }
-    struct PromoCode{
+
+    struct PromoCode {
         uint256 listingId;
         uint256 discountBps;
         uint256 maxUses;
@@ -138,6 +139,7 @@ contract MarketPlace {
     error PromoCodeNotFound();
     error PromoCodeWrongListing();
     error PromoCodeExpired();
+
     /* ========== CONSTRUCTOR ========== */
     constructor(address inventoryAddress, address orderRegistryAddress) {
         if (inventoryAddress == address(0)) revert ZeroAddress();
@@ -247,20 +249,19 @@ contract MarketPlace {
         sellerStats[msg.sender].activeListingItem++;
         emit CreateListingItem(listingId, msg.sender, _quantity, _price);
     }
-    function createPromoCode(uint256 _listingId, string memory _code , uint256 _discountBps, uint256 _maxUses) external OnlyAdminOrSeller(_listingId){
-        if(_discountBps == 0 || _discountBps > 5_000) revert DiscountTooHigh();
-        if(_maxUses == 0) revert AmountCantBeZero();
+
+    function createPromoCode(uint256 _listingId, string memory _code, uint256 _discountBps, uint256 _maxUses)
+        external
+        OnlyAdminOrSeller(_listingId)
+    {
+        if (_discountBps == 0 || _discountBps > 5_000) revert DiscountTooHigh();
+        if (_maxUses == 0) revert AmountCantBeZero();
 
         bytes32 codeHash = keccak256(abi.encodePacked(_code));
-        if(promoCodes[codeHash].exist) revert CodeAlreadyExists();
+        if (promoCodes[codeHash].exist) revert CodeAlreadyExists();
 
         promoCodes[codeHash] = PromoCode({
-            listingId : _listingId,
-            discountBps : _discountBps,
-            maxUses : _maxUses,
-            usedCount : 0,
-            exist : true
-
+            listingId: _listingId, discountBps: _discountBps, maxUses: _maxUses, usedCount: 0, exist: true
         });
 
         emit PromoCodeCreated(codeHash, _listingId, _discountBps, _maxUses);
@@ -331,7 +332,11 @@ contract MarketPlace {
     }
 
     /* ========== USER ACTION ========== */
-    function buy(uint256 _itemId, uint128 _amount, string memory _promoCode) external payable returns (uint256 orderId) {
+    function buy(uint256 _itemId, uint128 _amount, string memory _promoCode)
+        external
+        payable
+        returns (uint256 orderId)
+    {
         ListingItem memory it = items[_itemId];
         if (!it.exist) revert ItemNotFound();
         if (it.isDelisting) revert ItemDelisted();
@@ -341,7 +346,7 @@ contract MarketPlace {
 
         uint256 total = it.priceWei * uint256(_amount);
         uint256 discountedTotal = total;
-        if(bytes(_promoCode).length > 0){
+        if (bytes(_promoCode).length > 0) {
             discountedTotal = __applyPromoCode(_itemId, _promoCode, total);
         }
         uint256 appliedFee = __calcFee(discountedTotal, it.seller);
@@ -355,13 +360,17 @@ contract MarketPlace {
 
         emit Purchase(_itemId, msg.sender, _amount, orderId);
     }
-    function __applyPromoCode(uint256 _itemId, string memory _code, uint256 total) internal returns(uint256 discountedTotal){
+
+    function __applyPromoCode(uint256 _itemId, string memory _code, uint256 total)
+        internal
+        returns (uint256 discountedTotal)
+    {
         bytes32 codeHash = keccak256(abi.encodePacked(_code));
         PromoCode storage promo = promoCodes[codeHash];
 
-        if(!promo.exist) revert PromoCodeNotFound();
-        if(promo.listingId != _itemId) revert PromoCodeWrongListing();
-        if(promo.usedCount >= promo.maxUses) revert PromoCodeExpired();
+        if (!promo.exist) revert PromoCodeNotFound();
+        if (promo.listingId != _itemId) revert PromoCodeWrongListing();
+        if (promo.usedCount >= promo.maxUses) revert PromoCodeExpired();
         promo.usedCount++;
 
         uint256 discount = total * promo.discountBps / BPS;
@@ -369,6 +378,7 @@ contract MarketPlace {
 
         emit PromoCodeUsed(codeHash, msg.sender, discount);
     }
+
     function __calcFee(uint256 total, address seller) internal view returns (uint256) {
         uint256 fee = total * feesBps / BPS;
         uint256 vipFee = total * vipFeesBps / BPS;

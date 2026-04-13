@@ -11,7 +11,7 @@ contract MarketPlaceHandler is Test {
     Inventory public inv;
 
     address public seller = makeAddr("seller");
-    address public buyer  = makeAddr("buyer");
+    address public buyer = makeAddr("buyer");
     address public admin;
 
     uint256 public listingId;
@@ -20,8 +20,8 @@ contract MarketPlaceHandler is Test {
     uint256 public ghost_totalWithdrawn;
 
     constructor(MarketPlace _mrkt, Inventory _inv) {
-        mrkt  = _mrkt;
-        inv   = _inv;
+        mrkt = _mrkt;
+        inv = _inv;
         admin = address(this);
 
         vm.deal(buyer, 1000 ether);
@@ -89,9 +89,9 @@ contract MarketPlaceInvariantTest is Test {
     receive() external payable {}
 
     function setUp() public {
-        inv   = new Inventory();
-        reg   = new OrderRegistry(address(inv));
-        mrkt  = new MarketPlace(address(inv), address(reg));
+        inv = new Inventory();
+        reg = new OrderRegistry(address(inv));
+        mrkt = new MarketPlace(address(inv), address(reg));
 
         inv.setOperator(address(reg), true);
         inv.setOperator(address(mrkt), true);
@@ -108,58 +108,17 @@ contract MarketPlaceInvariantTest is Test {
 
     function invariant_accountingBalanceAlwaysHolds() public view {
         (uint256 market, uint256 users, uint256 platform) = mrkt.getAccounting();
-        assertEq(
-            market,
-            users + platform,
-            "INVARIANT BROKEN: balance != totalUserBalances + totalPlatformBalance"
-        );
+        assertEq(market, users + platform, "INVARIANT BROKEN: balance != totalUserBalances + totalPlatformBalance");
     }
+
     function invariant_platformBalanceNeverNegative() public view {
-        (, , uint256 platform) = mrkt.getAccounting();
+        (,, uint256 platform) = mrkt.getAccounting();
         assertGe(platform, 0, "INVARIANT BROKEN: platform balance negative");
     }
+
     function invariant_userBalancesNeverExceedContractBalance() public view {
         (uint256 market, uint256 users,) = mrkt.getAccounting();
         assertLe(users, market, "INVARIANT BROKEN: totalUserBalances > contract balance");
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
