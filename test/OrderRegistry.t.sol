@@ -11,6 +11,7 @@ contract OrderRegistryTest is Test {
 
     address buyer = address(0xB0B);
     address attacker = address(0xBAD);
+    address operator = address(0xF00D);
 
     uint64 constant WINDOW_VIP = 10 minutes;
     uint64 constant WINDOW_NON_VIP = 30 minutes;
@@ -18,18 +19,19 @@ contract OrderRegistryTest is Test {
     function setUp() public {
         inv = new MockInventory();
         reg = new OrderRegistry(address(inv));
+        reg.setOperator(operator);
     }
 
     function _createNonVip() internal returns (uint256 id) {
-        vm.prank(buyer);
+        vm.prank(operator);
 
-        id = reg.createOrder(1, 2, WINDOW_NON_VIP);
+        id = reg.createOrder(buyer, 1, 2, WINDOW_NON_VIP);
     }
 
     function _createVip() internal returns (uint256 id) {
-        vm.prank(buyer);
+        vm.prank(operator);
 
-        id = reg.createOrder(1, 2, WINDOW_VIP);
+        id = reg.createOrder(buyer, 1, 2, WINDOW_VIP);
     }
 
     function test_createOrder_basic() public {
@@ -157,10 +159,10 @@ contract OrderRegistryTest is Test {
         uint256 beforeId = reg.nextOrderId();
 
         inv.setReserveRevert(true);
-        vm.prank(buyer);
+        vm.prank(operator);
         vm.expectRevert();
 
-        reg.createOrder(1, 2, WINDOW_NON_VIP);
+        reg.createOrder(buyer, 1, 2, WINDOW_NON_VIP);
 
         assertEq(reg.nextOrderId(), beforeId);
     }
@@ -181,8 +183,8 @@ contract OrderRegistryTest is Test {
         vm.expectEmit(true, true, true, true);
         emit OrderRegistry.OrderCreated(0, buyer, 1, 2);
 
-        vm.prank(buyer);
-        reg.createOrder(1, 2, WINDOW_NON_VIP);
+        vm.prank(operator);
+        reg.createOrder(buyer, 1, 2, WINDOW_NON_VIP);
     }
 
     function test_cancelOrder_emits_OrderCancelled() public {
@@ -210,8 +212,8 @@ contract OrderRegistryTest is Test {
 
         uint256 before = inv.reserveCalls();
 
-        vm.prank(buyer);
-        reg.createOrder(itemId, amount, WINDOW_NON_VIP);
+        vm.prank(operator);
+        reg.createOrder(buyer, itemId, amount, WINDOW_NON_VIP);
 
         assertEq(inv.reserveCalls(), before + 1);
     }
@@ -219,8 +221,8 @@ contract OrderRegistryTest is Test {
     function testFuzz_cancelOrder_callsRelease(uint256 itemId, uint128 amount) public {
         amount = uint128(bound(uint256(amount), 1, 1000));
         itemId = bound(itemId, 1, 1_000_000);
-        vm.prank(buyer);
-        uint256 id = reg.createOrder(itemId, amount, WINDOW_NON_VIP);
+        vm.prank(operator);
+        uint256 id = reg.createOrder(buyer, itemId, amount, WINDOW_NON_VIP);
 
         vm.warp(block.timestamp + 10);
         uint256 before = inv.releaseCalls();
@@ -237,8 +239,8 @@ contract OrderRegistryTest is Test {
         amount = uint128(bound(uint256(amount), 1, 1000));
         itemId = bound(itemId, 1, 1_000_000);
 
-        vm.prank(address(0xB0B));
-        uint256 id = reg.createOrder(itemId, amount, WINDOW_NON_VIP);
+        vm.prank(operator);
+        uint256 id = reg.createOrder(buyer, itemId, amount, WINDOW_NON_VIP);
 
         vm.prank(attacker);
         vm.expectRevert(OrderRegistry.NotBuyer.selector);

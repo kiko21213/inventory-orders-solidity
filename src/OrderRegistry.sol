@@ -77,7 +77,11 @@ contract OrderRegistry {
     }
 
     /* ========== ORDER LOGIC ========== */
-    function createOrder(uint256 itemId, uint128 amount, uint64 _cancelOrder) external returns (uint256 orderId) {
+    function createOrder(address _buyer, uint256 itemId, uint128 amount, uint64 _cancelOrder)
+        external
+        onlyAdminOrOperator
+        returns (uint256 orderId)
+    {
         if (amount == 0) revert AmountZero();
 
         // reserve FIRST
@@ -85,7 +89,7 @@ contract OrderRegistry {
 
         orderId = nextOrderId++;
         orders[orderId] = Order({
-            buyer: msg.sender,
+            buyer: _buyer,
             itemId: itemId,
             amount: amount,
             createdAt: uint64(block.timestamp),
@@ -94,7 +98,7 @@ contract OrderRegistry {
             state: OrderState.Created
         });
 
-        emit OrderCreated(orderId, msg.sender, itemId, amount);
+        emit OrderCreated(orderId, _buyer, itemId, amount);
     }
 
     function cancelOrder(uint256 orderId) external {

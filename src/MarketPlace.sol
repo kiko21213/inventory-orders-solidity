@@ -19,7 +19,9 @@ interface IInventory {
 }
 
 interface IOrderRegistry {
-    function createOrder(uint256 itemId, uint128 amount, uint64 _cancelOrder) external returns (uint256 orderId);
+    function createOrder(address _buyer, uint256 itemId, uint128 amount, uint64 _cancelOrder)
+        external
+        returns (uint256 orderId);
     function markPaid(uint256 orderId) external;
 }
 
@@ -353,7 +355,7 @@ contract MarketPlace {
         __handlePayment(discountedTotal, cashback, appliedFee, it.seller, _amount);
 
         uint64 cancelOrder = isVip[it.seller] ? CANCEL_ORDER_VIP : CANCEL_ORDER_NON_VIP;
-        orderId = orderRegistry.createOrder(it.inventoryItemId, _amount, cancelOrder);
+        orderId = orderRegistry.createOrder(msg.sender, it.inventoryItemId, _amount, cancelOrder);
         orderRegistry.markPaid(orderId);
         __autoInactive(_itemId, it.inventoryItemId);
 
