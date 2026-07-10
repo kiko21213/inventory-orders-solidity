@@ -319,4 +319,10 @@ contract OrderRegistryTest is Test {
         vm.expectRevert(OrderRegistry.CancelOrderPassed.selector);
         reg.cancelOrder(id);
     }
+
+    function test_createOrder_revertsForUnauthorizedCaller() public {
+        vm.prank(attacker);
+        vm.expectRevert(OrderRegistry.NotAuthorized.selector);
+        reg.createOrder(buyer, 1, 2, WINDOW_NON_VIP);
+    }
 }
